@@ -8,7 +8,7 @@ export interface CreateImpCommand {
   readonly name: string;
   readonly description?: string;
   readonly status?: ImpStatus;
-  readonly tenantId: string;
+  readonly empresaId: string;
 }
 
 export interface ChangeImpCommand {
@@ -34,7 +34,7 @@ export class ImpDomainService {
       name: command.name.trim(),
       description: command.description?.trim(),
       status: command.status ?? ImpStatus.ACTIVE,
-      tenantId: command.tenantId,
+      empresaId: command.empresaId,
       createdAt: now,
       updatedAt: now,
     });

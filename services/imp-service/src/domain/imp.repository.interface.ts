@@ -21,13 +21,13 @@ export interface ImpPage {
  * cross-empresa read path by design.
  */
 export interface ImpRepositoryPort {
-  save(entity: ImpEntity, tenantId: string): Promise<ImpEntity>;
+  save(entity: ImpEntity, empresaId: string): Promise<ImpEntity>;
 
-  findById(id: string, tenantId: string): Promise<ImpEntity | null>;
+  findById(id: string, empresaId: string): Promise<ImpEntity | null>;
 
-  findAll(page: PageRequest, tenantId: string): Promise<ImpPage>;
+  findAll(page: PageRequest, empresaId: string): Promise<ImpPage>;
 
-  deleteById(id: string, tenantId: string): Promise<void>;
+  deleteById(id: string, empresaId: string): Promise<void>;
 }
 
 /**

@@ -12,7 +12,7 @@ interface JwtPayload {
   email?: string;
   scope?: string;
   realm_access?: { roles?: string[] };
-  tenant_id?: string;
+  empresa_id?: string;
 }
 
 /**
@@ -53,7 +53,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       username: payload.preferred_username ?? payload.email ?? payload.sub,
       roles: payload.realm_access?.roles ?? [],
       scopes: (payload.scope ?? '').split(' ').filter((scope) => scope.length > 0),
-      tenantId: payload.tenant_id ?? '',
+      empresaId: payload.empresa_id ?? '',
     };
   }
 }

@@ -33,20 +33,20 @@ export class ImpService {
       name: dto.name,
       description: dto.description,
       status: dto.status,
-      tenantId: user.tenantId,
+      empresaId: user.empresaId,
     });
 
-    const saved = await this.repository.save(entity, user.tenantId);
+    const saved = await this.repository.save(entity, user.empresaId);
     this.logger.log(`IMP created: ${saved.id}`);
     return saved;
   }
 
   async findAll(user: AuthenticatedUser, page: PageRequest): Promise<ImpPage> {
-    return this.repository.findAll(page, user.tenantId);
+    return this.repository.findAll(page, user.empresaId);
   }
 
   async findOne(id: string, user: AuthenticatedUser): Promise<ImpEntity> {
-    const found = await this.repository.findById(id, user.tenantId);
+    const found = await this.repository.findById(id, user.empresaId);
     if (!found) {
       throw new NotFoundException(`IMP ${id} not found`);
     }
@@ -60,13 +60,13 @@ export class ImpService {
   ): Promise<ImpEntity> {
     const current = await this.findOne(id, user);
     const next = this.domainService.applyChanges(current, dto);
-    const saved = await this.repository.save(next, user.tenantId);
+    const saved = await this.repository.save(next, user.empresaId);
     return saved;
   }
 
   async remove(id: string, user: AuthenticatedUser): Promise<void> {
     await this.findOne(id, user);
-    await this.repository.deleteById(id, user.tenantId);
+    await this.repository.deleteById(id, user.empresaId);
     this.logger.log(`IMP deleted: ${id}`);
   }
 }

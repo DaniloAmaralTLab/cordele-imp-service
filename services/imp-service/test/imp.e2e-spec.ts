@@ -13,7 +13,7 @@ const TEST_USER: AuthenticatedUser = {
   username: 'e2e-runner',
   roles: ['imp-user'],
   scopes: ['imp:read', 'imp:write'],
-  tenantId: '00000000-0000-0000-0000-000000000002',
+  empresaId: '00000000-0000-0000-0000-000000000002',
 };
 
 /**

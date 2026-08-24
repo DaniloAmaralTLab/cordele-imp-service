@@ -17,7 +17,7 @@ export class ImpMapper {
       name: model.name,
       description: model.description ?? undefined,
       status: model.status as ImpStatus,
-      tenantId: model.tenantId,
+      empresaId: model.empresaId,
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
     });
@@ -33,7 +33,7 @@ export class ImpMapper {
       name: entity.name,
       description: entity.description ?? null,
       status: entity.status,
-      tenantId: entity.tenantId,
+      empresaId: entity.empresaId,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     };

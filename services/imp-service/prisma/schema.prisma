@@ -22,9 +22,13 @@ generator client {
 model Imp {
   id          String   @id @default(uuid()) @db.Uuid
   empresaId String @db.Uuid
-  code        String   @db.VarChar(64)
+  code        String?  @db.VarChar(64)
   name        String   @db.VarChar(255)
   description String?  @db.Text
+  // D-602: the domain entity and mapper carry a lifecycle status
+  // (ImpStatus: ACTIVE | INACTIVE | ARCHIVED); `active` is the soft-delete
+  // flag and cannot stand in for it.
+  status      String   @default("ACTIVE") @db.VarChar(32)
   active      Boolean  @default(true)
   version     Int      @default(0)
   createdAt   DateTime @default(now()) @db.Timestamptz(6)

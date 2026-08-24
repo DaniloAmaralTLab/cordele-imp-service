@@ -16,7 +16,7 @@ export interface AuthenticatedUser {
   readonly roles: string[];
   readonly scopes: string[];
   /** Resolved empresa — every repository call is scoped by it. */
-  readonly tenantId: string;
+  readonly empresaId: string;
 }
 
 export const IS_PUBLIC_KEY = 'isPublic';
@@ -49,7 +49,10 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     super();
   }
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
+  // `override` is required: AuthGuard('jwt') already declares canActivate, and
+  // the generated tsconfig enables noImplicitOverride (TS4114). Without it the
+  // service does not compile — which no one saw while the node gates never ran.
+  override async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -76,14 +79,14 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   ): AuthenticatedUser {
     const requested = Array.isArray(header) ? header[0] : header;
 
-    if (requested && requested !== user.tenantId) {
+    if (requested && requested !== user.empresaId) {
       if (!user.roles.includes('empresa-admin')) {
         throw new ForbiddenException('Not allowed to act on behalf of another empresa');
       }
-      return { ...user, tenantId: requested };
+      return { ...user, empresaId: requested };
     }
 
-    if (!user.tenantId) {
+    if (!user.empresaId) {
       throw new ForbiddenException('Token carries no empresa claim');
     }
     return user;

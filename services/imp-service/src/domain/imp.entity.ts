@@ -12,7 +12,7 @@ export interface ImpProps {
   readonly name: string;
   readonly description?: string;
   readonly status: ImpStatus;
-  readonly tenantId: string;
+  readonly empresaId: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -30,7 +30,7 @@ export class ImpEntity {
   readonly description?: string;
   readonly status: ImpStatus;
   /** Owning empresa; every query must be scoped by it. */
-  readonly tenantId: string;
+  readonly empresaId: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 
@@ -40,7 +40,7 @@ export class ImpEntity {
     this.name = props.name;
     this.description = props.description;
     this.status = props.status;
-    this.tenantId = props.tenantId;
+    this.empresaId = props.empresaId;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
   }
@@ -52,7 +52,7 @@ export class ImpEntity {
       name: changes.name ?? this.name,
       description: changes.description ?? this.description,
       status: changes.status ?? this.status,
-      tenantId: this.tenantId,
+      empresaId: this.empresaId,
       createdAt: this.createdAt,
       updatedAt: new Date(),
     });
@@ -73,7 +73,7 @@ export class ImpEntity {
     if (!props.name || props.name.trim().length < 2) {
       throw new Error('ImpEntity: name must have at least 2 characters');
     }
-    if (!props.tenantId) {
+    if (!props.empresaId) {
       throw new Error('ImpEntity: empresa is required');
     }
   }

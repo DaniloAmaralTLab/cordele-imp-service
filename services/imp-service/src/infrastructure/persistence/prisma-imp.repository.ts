@@ -23,9 +23,9 @@ export class PrismaImpRepository implements ImpRepositoryPort {
 
   async save(
     entity: ImpEntity,
-    tenantId: string,
+    empresaId: string,
   ): Promise<ImpEntity> {
-    if (entity.tenantId !== tenantId) {
+    if (entity.empresaId !== empresaId) {
       throw new Error('IMP: cross-empresa write rejected');
     }
     const model = await this.prisma.imp.upsert({
@@ -38,21 +38,21 @@ export class PrismaImpRepository implements ImpRepositoryPort {
 
   async findById(
     id: string,
-    tenantId: string,
+    empresaId: string,
   ): Promise<ImpEntity | null> {
     const model = await this.prisma.imp.findFirst({
-      where: { id, tenantId },
+      where: { id, empresaId },
     });
     return model ? ImpMapper.toDomain(model) : null;
   }
 
   async findAll(
     page: PageRequest,
-    tenantId: string,
+    empresaId: string,
   ): Promise<ImpPage> {
     const size = Math.min(Math.max(page.size, 1), 200);
     const skip = Math.max(page.page - 1, 0) * size;
-    const where = { tenantId };
+    const where = { empresaId };
 
     const [models, total] = await this.prisma.$transaction([
       this.prisma.imp.findMany({
@@ -69,10 +69,10 @@ export class PrismaImpRepository implements ImpRepositoryPort {
 
   async deleteById(
     id: string,
-    tenantId: string,
+    empresaId: string,
   ): Promise<void> {
     await this.prisma.imp.deleteMany({
-      where: { id, tenantId },
+      where: { id, empresaId },
     });
     this.logger.debug(`IMP row deleted: ${id}`);
   }
