@@ -41,7 +41,7 @@ boundaries preserved by the module graph; straightforward local testing. The arc
 into services later, context by context, because each is already an isolated module behind ports.
 
 Negative / trade-offs: all contexts share a runtime and are deployed together, so one context cannot
-scale or fail independently; discipline (enforced by `eslint-plugin-boundaries`, ADR-001) is required
+scale or fail independently; discipline (enforced by scoped `no-restricted-imports` in `eslint.config.mjs`, ADR-001 rule 7) is required
 to keep modules from reaching past their ports. Revisited if load or team topology demands it — a move
 to services would supersede this record rather than edit it.
 

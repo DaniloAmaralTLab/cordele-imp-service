@@ -377,7 +377,7 @@ Status: pendente
 
 ## 4. Restrições arquiteturais (node)
 
-- `eslint-plugin-boundaries` enforces layer boundaries: `modules/` imports only from `domain/`; `infrastructure/` imports from `domain/` only; no cross-layer upward imports.
+- Scoped `no-restricted-imports` in `eslint.config.mjs` (gate `eslintBoundaries`) enforces layer boundaries: `modules/` imports only from `domain/`; `infrastructure/` imports from `domain/` only; no cross-layer upward imports.
 - Prisma transactions only in the application layer (`ImportManuscriptUseCase`); repositories are stateless adapters.
 - `EmpresaContext` (AsyncLocalStorage) populated by middleware before the request reaches any use case; never read from URL path.
 - Manuscripts: INSERT only (no UPDATE) — enforced in `ManuscritoRepository` (the Prisma `update` method is deliberately not called).

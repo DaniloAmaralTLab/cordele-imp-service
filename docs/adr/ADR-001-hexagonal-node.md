@@ -56,9 +56,11 @@ Concretely:
 
 6. **A transaction never spans two modules.** Cross-context consistency is eventual.
 
-7. **`src/domain/` imports neither `@nestjs/*` nor `@prisma/client`**, enforced by
-   `eslint-plugin-boundaries` plus scoped `no-restricted-imports` as a hard CI gate — the Node
-   counterpart of ArchUnit RULE-01..09.
+7. **`src/domain/` imports neither `@nestjs/*` nor `@prisma/client`**, enforced by scoped
+   `no-restricted-imports` in `eslint.config.mjs`, run by the `eslintBoundaries` gate — the Node
+   counterpart of ArchUnit RULE-01..09. `eslint-plugin-boundaries` is deliberately **not** used:
+   adding a dependency so a gate can start is a worse trade than expressing the same constraint
+   with what the service already declares (D-603).
 
 8. **Prisma models are persistence models.** An explicit mapper sits between the Prisma row and
    the domain entity, and generated Prisma types never appear in a DTO, a controller signature
@@ -135,9 +137,10 @@ depend on infrastructure for its own contract.
   `Inject*` helper decorators declared beside each token.
 - Two mappings (DTO ↔ domain ↔ Prisma row) look like duplication until the three shapes start
   diverging for independent reasons — which they always do.
-- `eslint-plugin-boundaries` must be configured per service; a missing configuration silently
-  removes the gate. The smoke test for a scaffolded Node service asserts the configuration is
-  present.
+- The lint configuration must exist per service; a missing `eslint.config.mjs` silently removes
+  the gate — which is exactly what happened before D-603, when no service shipped one at all.
+  `tests/smoke_multistack_generators.py` now scaffolds a real service and asserts the file is
+  present and carries the `src/domain/` boundary rule (D-604).
 **Multi-empresa note.** Node has no thread-local, so the
 empresa context is carried by `AsyncLocalStorage`, opened once by a middleware
 and required by every use case before it touches a repository. It does not cross a broker

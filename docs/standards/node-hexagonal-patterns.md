@@ -349,36 +349,66 @@ empresa A write into empresa B's aggregate.
 
 ## 10. ESLint boundaries — the ArchUnit equivalent
 
-`eslint-plugin-boundaries` enforces the layer rules at lint time. This is the Node counterpart
-of the Java ArchUnit RULE-01..09 and it is a **hard CI gate**, not advisory.
+Scoped `no-restricted-imports` enforces the layer rules at lint time, in the generated
+`eslint.config.mjs`. This is the Node counterpart of the Java ArchUnit RULE-01..09 and it is a
+**hard CI gate** (`eslintBoundaries`), not advisory.
 
 ```js
-// eslint.config.mjs (excerpt)
-settings: {
-  'boundaries/elements': [
-    { type: 'domain',         pattern: 'src/domain/**' },
-    { type: 'application',    pattern: 'src/modules/**' },
-    { type: 'infrastructure', pattern: 'src/infrastructure/**' },
-    { type: 'composition',    pattern: 'src/{main.ts,app.module.ts}' },
-  ],
+// eslint.config.mjs (excerpt) — as generated
+{
+  // RULE-01/02 — the domain stays pure.
+  files: ['src/domain/**/*.ts'],
+  rules: {
+    'no-restricted-imports': ['error', {
+      patterns: [
+        {
+          group: ['@nestjs/*', '@prisma/client', 'prisma',
+                  '**/infrastructure/**', '**/modules/**'],
+          message: 'Invert the dependency through a port declared in the domain.',
+        },
+      ],
+    }],
+  },
 },
-rules: {
-  'boundaries/element-types': ['error', {
-    default: 'disallow',
-    rules: [
-      { from: 'domain',         allow: ['domain'] },
-      { from: 'application',    allow: ['domain', 'application'] },
-      { from: 'infrastructure', allow: ['domain', 'infrastructure'] },
-      { from: 'composition',    allow: ['domain', 'application', 'infrastructure'] },
-    ],
-  }],
-  'no-restricted-imports': ['error', {
-    patterns: [
-      { group: ['@nestjs/*', '@prisma/client'], message: 'RULE-01/02: domain must stay framework-free' },
-    ],
-  }],
+{
+  // Feature modules reach persistence through the domain ports, never Prisma.
+  files: ['src/modules/**/*.ts'],
+  rules: {
+    'no-restricted-imports': ['error', {
+      patterns: [{ group: ['@prisma/client', 'prisma'] }],
+    }],
+  },
 },
 ```
+
+> **`eslint-plugin-boundaries` is not used (D-603).** The richer `boundaries/element-types`
+> matrix below is the shape to adopt *if* the plugin is ever installed; it is documented as an
+> upgrade path, not as something the scaffold ships. Until the dependency is declared and
+> configured, no document should claim it enforces anything — that claim stood here while the
+> generated service had no ESLint config at all, and the generator itself violated RULE-01.
+>
+> ```js
+> // OPTIONAL upgrade — requires adding eslint-plugin-boundaries to the service
+> settings: {
+>   'boundaries/elements': [
+>     { type: 'domain',         pattern: 'src/domain/**' },
+>     { type: 'application',    pattern: 'src/modules/**' },
+>     { type: 'infrastructure', pattern: 'src/infrastructure/**' },
+>     { type: 'composition',    pattern: 'src/{main.ts,app.module.ts}' },
+>   ],
+> },
+> rules: {
+>   'boundaries/element-types': ['error', {
+>     default: 'disallow',
+>     rules: [
+>       { from: 'domain',         allow: ['domain'] },
+>       { from: 'application',    allow: ['domain', 'application'] },
+>       { from: 'infrastructure', allow: ['domain', 'infrastructure'] },
+>       { from: 'composition',    allow: ['domain', 'application', 'infrastructure'] },
+>     ],
+>   }],
+> },
+> ```
 
 | Rule | Intent | Java equivalent |
 |---|---|---|

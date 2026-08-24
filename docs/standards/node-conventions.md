@@ -51,37 +51,61 @@ Rules:
 Flat config (`eslint.config.mjs`) at the repository root, extended per service only to add
 paths — never to disable a rule.
 
-```js
-// eslint.config.mjs
-import tseslint from 'typescript-eslint';
-import boundaries from 'eslint-plugin-boundaries';
-import importPlugin from 'eslint-plugin-import';
+The scaffold emits `eslint.config.mjs` per service (flat config — ESLint 9 no longer reads
+`.eslintrc`). It imports only what the service's own `package.json` declares, because pnpm's
+`node_modules` is strict and reaching for an undeclared package fails at load time:
 
-export default tseslint.config(
-  ...tseslint.configs.strictTypeChecked,
-  ...tseslint.configs.stylisticTypeChecked,
+```js
+// eslint.config.mjs — as generated
+import tsParser from '@typescript-eslint/parser';
+import tsPlugin from '@typescript-eslint/eslint-plugin';
+import prettier from 'eslint-config-prettier';
+
+export default [
+  { ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'prisma/migrations/**'] },
   {
-    plugins: { boundaries, import: importPlugin },
-    languageOptions: {
-      parserOptions: { project: ['./tsconfig.json'], tsconfigRootDir: import.meta.dirname },
-    },
+    files: ['**/*.ts'],
+    languageOptions: { parser: tsParser, ecmaVersion: 2023, sourceType: 'module' },
+    plugins: { '@typescript-eslint': tsPlugin },
     rules: {
-      '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/explicit-module-boundary-types': 'error',
-      '@typescript-eslint/no-floating-promises': 'error',
-      '@typescript-eslint/no-misused-promises': 'error',
-      '@typescript-eslint/consistent-type-imports': 'error',
-      '@typescript-eslint/require-await': 'error',
-      'no-console': 'error',
-      'import/no-default-export': 'error',
-      'import/order': ['error', { /* see "Import ordering" below */ }],
+      ...tsPlugin.configs.recommended.rules,
+      ...prettier.rules,
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
+      '@typescript-eslint/no-explicit-any': 'warn',
     },
   },
-);
+  {
+    // The domain stays pure — the Node counterpart of ArchUnit RULE-01..09.
+    files: ['src/domain/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@nestjs/*', '@prisma/client', 'prisma',
+                      '**/infrastructure/**', '**/modules/**'],
+              message: 'Invert the dependency through a port declared in the domain.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+];
 ```
 
-`eslint-plugin-boundaries` enforces the hexagonal layer rules — the Node equivalent of the
-Java ArchUnit suite. The rule set lives in `node-hexagonal-patterns.md` §ESLint boundaries.
+Scoped `no-restricted-imports` enforces the hexagonal layer rules, run by the
+`eslintBoundaries` gate — the Node equivalent of the Java ArchUnit suite. The rule set lives
+in `node-hexagonal-patterns.md` §ESLint boundaries.
+
+`eslint-plugin-boundaries` is **not** used, and this is deliberate (D-603): adding a
+dependency so that a gate can start is a worse trade than expressing the same constraint with
+what the service already declares. Adopting it later is an upgrade, not a prerequisite — and
+until it is actually installed and configured, no document should claim it enforces anything.
 
 ## Prettier
 
