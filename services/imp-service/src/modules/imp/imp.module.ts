@@ -20,7 +20,13 @@ import { ImpService } from './imp.service';
   controllers: [ImpController],
   providers: [
     ImpService,
-    ImpDomainService,
+    // D-603: registered by factory because the domain service carries no Nest
+    // decorator — ADR-001-hexagonal-node rule 7 keeps `src/domain/` free of
+    // `@nestjs/*`. The wiring belongs here, in the application layer, not there.
+    {
+      provide: ImpDomainService,
+      useFactory: () => new ImpDomainService(),
+    },
     { provide: ImpRepositoryPort, useClass: PrismaImpRepository },
   ],
   exports: [ImpService],

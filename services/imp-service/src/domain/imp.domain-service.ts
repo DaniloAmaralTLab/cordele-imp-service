@@ -1,7 +1,5 @@
 import { randomUUID } from 'node:crypto';
 
-import { Injectable } from '@nestjs/common';
-
 import { ImpEntity, ImpStatus } from './imp.entity';
 
 export interface CreateImpCommand {
@@ -22,9 +20,13 @@ export interface ChangeImpCommand {
  *
  * Holds the business rules that do not belong to a single entity instance:
  * construction policies, cross-field validation and state transitions. It is
- * `@Injectable` for convenience but stays free of infrastructure imports.
+ *
+ * D-603: this class carries NO Nest decorator. ADR-001-hexagonal-node rule 7
+ * requires that `src/domain/` import neither `@nestjs/*` nor `@prisma/client`,
+ * and the `@Injectable()` that used to sit here — added "for convenience" —
+ * broke exactly that rule. The module registers it with a factory instead, so
+ * the domain stays testable without booting the framework.
  */
-@Injectable()
 export class ImpDomainService {
   /** Materializes a brand new aggregate from a validated command. */
   createFrom(command: CreateImpCommand): ImpEntity {
