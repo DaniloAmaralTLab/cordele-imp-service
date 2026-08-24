@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "entryFile": "main",
+  "projects": {},
+  "monorepo": false,
+  "compilerOptions": {
+    "builder": "tsc",
+    "webpack": false,
+    "deleteOutDir": true,
+    "tsConfigPath": "tsconfig.build.json",
+    "manualRestart": true,
+    "watchAssets": true,
+    "assets": [
+      { "include": "**/*.sql", "outDir": "dist" },
+      { "include": "**/*.yml", "outDir": "dist" },
+      { "include": "**/*.json", "exclude": "**/tsconfig*.json", "outDir": "dist" }
+    ],
+    "plugins": [
+      {
+        "name": "@nestjs/swagger",
+        "options": {
+          "introspectComments": true,
+          "dtoFileNameSuffix": [".dto.ts", ".entity.ts"],
+          "classValidatorShim": true
+        }
+      }
+    ]
+  },
+  "generateOptions": {
+    "spec": true,
+    "flat": false
+  },
+  "_service": "imp-service"
+}

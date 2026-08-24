@@ -1,0 +1,35 @@
+@startuml imp-c4-context
+' C4 Level 1 — System Context — Import (IMP) context of Cordelê
+title Cordelê — Import (IMP) — System Context
+
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #24608A
+}
+
+actor "Coordenador(a) Editorial\n(Marina — Editora Aetós)" as Editor
+
+rectangle "Cordelê Platform\n(modular monolith)" as Monolith {
+  rectangle "Import (IMP)\nbounded context" as IMP #E8F0FE
+  rectangle "Projects (PROJ)\ncontext" as PROJ
+}
+
+rectangle "Angular Frontend\n(cordele-web)" as FE
+rectangle "BFF (NestJS)\nsingle entry point" as BFF
+database "PostgreSQL 16\nschema-per-tenant\n(cordele_global + emp_<slug>)" as PG
+rectangle "File Storage\n(local disk POC / S3 prod)" as Storage
+
+Editor --> FE : uploads .docx/.md (T03)\nreviews structure (T04)
+FE --> BFF : HTTPS (OAuth2 JWT)
+BFF --> IMP : POST /api/imp/manuscripts\n(synchronous parse)
+IMP --> PROJ : in-process port\n(create/validate ProjetoEditorial)
+IMP --> PG : persist immutable Manuscrito\n(tenant schema)
+IMP --> Storage : store binary + extracted images\n(tenant-scoped keys)
+IMP ..> PROJ : ManuscriptImported (in-process event)
+
+note bottom of IMP
+  No broker, no TechLab AI, no hub.
+  Deterministic parse (mammoth/remark).
+  Content is sacrosanct; unparsed segments preserved.
+end note
+@enduml

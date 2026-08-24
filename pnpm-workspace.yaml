@@ -1,0 +1,7 @@
+# Service packages expected (from project-context.modules.registry).
+# Created by /be-architect-scaffold via scripts/node-scaffold.py.
+packages:
+  - "services/imp-service"
+  - "services/comp-service"
+  - "services/pub-service"
+  - "services/proj-service"
