@@ -5,3 +5,20 @@ packages:
   - "services/comp-service"
   - "services/pub-service"
   - "services/proj-service"
+allowBuilds:
+  '@nestjs/core': set this to true or false
+  '@prisma/client': set this to true or false
+  '@prisma/engines': set this to true or false
+  '@scarf/scarf': set this to true or false
+  prisma: set this to true or false
+
+# pnpm >=10 blocks dependency postinstall scripts by default
+# (ERR_PNPM_IGNORED_BUILDS). Prisma needs its postinstall to generate the client
+# and fetch the query engines, and @nestjs/core runs its own. Allow-list exactly
+# these instead of disabling the protection globally.
+# In pnpm 11 this setting lives here, NOT in package.json's "pnpm" field.
+onlyBuiltDependencies:
+  - "@nestjs/core"
+  - "@prisma/client"
+  - "@prisma/engines"
+  - "prisma"
