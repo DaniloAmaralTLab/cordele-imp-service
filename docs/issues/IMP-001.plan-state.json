@@ -1,0 +1,36 @@
+{
+  "issue": "IMP-001",
+  "layer": "be",
+  "computedAt": "2026-08-25T17:12:45",
+  "checklist": {
+    "total": 5,
+    "done": 3,
+    "partial": 0,
+    "missing": 2,
+    "blocked": 0
+  },
+  "priorPlan": {
+    "exists": true,
+    "file": "docs\\architecture\\backend\\plans\\plan-IMP.md",
+    "phases": []
+  },
+  "delta": {
+    "done": [
+      "All 7 route handlers exist in ImpController (verified by controller unit test listing route metadata)",
+      "`@nestjs/swagger` decorators present on each route for OpenAPI generation",
+      "DI tokens declared: `IMPORT_MANUSCRIPT_USE_CASE`, `IGNORE_SEGMENT_USE_CASE`, `CONFIRM_ESTRUTURA_USE_CASE`, `MANUSCRITO_REPOSITORY`, `FILE_STORAGE_PORT`, `MANUSCRIPT_PARSER_PORT`"
+    ],
+    "partial": [],
+    "notStarted": [
+      "`pnpm build` exits 0 with ImpModule present",
+      "`pnpm test` on the controller spec exits 0"
+    ],
+    "inconsistencies": []
+  },
+  "dependencies": {
+    "issues": [],
+    "notes": []
+  },
+  "suggestedPlanType": "CONTINUACAO",
+  "needsAgentConfirm": true
+}

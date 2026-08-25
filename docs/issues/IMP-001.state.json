@@ -1,0 +1,88 @@
+{
+  "issue": "IMP-001",
+  "layer": "be",
+  "computedAt": "2026-08-25T20:08:21",
+  "checklist": {
+    "total": 5,
+    "done": 5,
+    "partial": 0,
+    "missing": 0,
+    "blocked": 0,
+    "items": [
+      {
+        "text": "`pnpm build` exits 0 with ImpModule present",
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "All 7 route handlers exist in ImpController (verified by controller unit test listing route metadata)",
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "`@nestjs/swagger` decorators present on each route for OpenAPI generation",
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "DI tokens declared: `IMPORT_MANUSCRIPT_USE_CASE`, `IGNORE_SEGMENT_USE_CASE`, `CONFIRM_ESTRUTURA_USE_CASE`, `MANUSCRITO_REPOSITORY`, `FILE_STORAGE_PORT`, `MANUSCRIPT_PARSER_PORT`",
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "`pnpm test` on the controller spec exits 0",
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
+      }
+    ]
+  },
+  "gates": {
+    "build": "pass",
+    "lint": "pass",
+    "test": "pass",
+    "e2e": "fail"
+  },
+  "score": {
+    "total": 80,
+    "provisional": true,
+    "range": [
+      80,
+      90
+    ],
+    "breakdown": {
+      "structure": {
+        "max": 30,
+        "value": 30,
+        "basis": "deterministic"
+      },
+      "functionality": {
+        "max": 30,
+        "value": 30,
+        "basis": "heuristic",
+        "needsAgentConfirm": true
+      },
+      "tests_lint": {
+        "max": 20,
+        "value": 20,
+        "basis": "deterministic"
+      },
+      "e2e": {
+        "max": 10,
+        "value": 0,
+        "basis": "deterministic"
+      },
+      "soft": {
+        "max": 10,
+        "value": null,
+        "basis": "agent",
+        "needsAgentConfirm": true
+      }
+    },
+    "band": "Maduro",
+    "statusTag": "NEAR-CLOSED"
+  },
+  "agentTodo": [
+    "Confirmar functionality 30/30 -- a funcionalidade alvo funciona?",
+    "Avaliar soft 0-10 -- a11y + observability + multi-tenancy enforcement"
+  ]
+}
