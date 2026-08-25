@@ -5,6 +5,7 @@ packages:
   - "services/comp-service"
   - "services/pub-service"
   - "services/proj-service"
+
 allowBuilds:
   '@nestjs/core': set this to true or false
   '@prisma/client': set this to true or false
