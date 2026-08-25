@@ -13,5 +13,8 @@
   "testTimeout": 30000,
   "maxWorkers": 1,
   "collectCoverageFrom": ["src/**/*.(t|j)s"],
-  "coverageDirectory": "../coverage-e2e"
+  "coverageDirectory": "../coverage-e2e",
+  "transformIgnorePatterns": [
+    "node_modules/(?!(\\.pnpm|remark-parse|unified|bail|trough|is-plain-obj|character-entities|decode-named-character-reference|mdast-util-from-markdown|mdast-util-to-string|micromark|unist-util|vfile))"
+  ]
 }
