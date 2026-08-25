@@ -1,6 +1,6 @@
 # IMP-INT-005 -- FileStoragePort S3-compatible adapter (production path)
 
-**Status:** INTACT -- gerado 2026-08-24
+**Status:** in-review -- implementado 2026-08-25 (P8)
 **Maturidade:** 0 -- Inicial
 
 ## Contexto
@@ -25,11 +25,11 @@ Files to create:
 
 ## Criterios de aceite
 
-- [ ] S3 adapter implements `FileStoragePort` interface (same 3 methods)
-- [ ] Key scheme matches local-disk: `emp_<slug>/manuscritos/<id>/...`
-- [ ] `put()` uses streaming upload (no full buffer in memory for 50MB files)
-- [ ] `delete()` no-ops silently on key not found (S3 SDK 404 swallowed)
-- [ ] `pnpm test` exits 0
+- [x] S3 adapter implements `FileStoragePort` interface (same 3 methods)
+- [x] Key scheme matches local-disk: `emp_<slug>/manuscritos/<id>/...`
+- [x] `put()` uses streaming upload (no full buffer in memory for 50MB files)
+- [x] `delete()` no-ops silently on key not found (S3 SDK 404 swallowed)
+- [x] `pnpm test` exits 0
 
 ## Dependencias
 

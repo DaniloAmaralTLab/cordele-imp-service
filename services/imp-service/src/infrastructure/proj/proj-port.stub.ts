@@ -1,0 +1,47 @@
+import { Injectable, Logger } from '@nestjs/common';
+
+import type {
+  AdvanceProjetoStatusInput,
+  AdvanceProjetoStatusPort,
+  CreateProjetoEditorialInput,
+  CreateProjetoEditorialOutput,
+  CreateProjetoEditorialPort,
+} from '../../domain/imp/ports/proj-port';
+
+/**
+ * Stub in-memory para CreateProjetoEditorialPort (IMP-INT-001).
+ *
+ * Registrado em AppModule até o PROJ service estar disponível.
+ * Retorna um projetoId sintético baseado no manuscritoId.
+ * NÃO importa infrastructure/persistence/ (RULE-05).
+ */
+@Injectable()
+export class CreateProjetoEditorialStub implements CreateProjetoEditorialPort {
+  private readonly logger = new Logger(CreateProjetoEditorialStub.name);
+
+  async create(
+    input: CreateProjetoEditorialInput,
+  ): Promise<CreateProjetoEditorialOutput> {
+    this.logger.warn(
+      `[STUB] CreateProjetoEditorialPort.create — manuscritoId=${input.manuscritoId} empresa=${input.empresaId}`,
+    );
+    return { projetoId: `proj-stub-${input.manuscritoId}` };
+  }
+}
+
+/**
+ * Stub in-memory para AdvanceProjetoStatusPort (IMP-INT-002).
+ *
+ * Registrado em AppModule até o PROJ service estar disponível.
+ * Idempotente: chamadas repetidas não lançam exceção.
+ */
+@Injectable()
+export class AdvanceProjetoStatusStub implements AdvanceProjetoStatusPort {
+  private readonly logger = new Logger(AdvanceProjetoStatusStub.name);
+
+  async advance(input: AdvanceProjetoStatusInput): Promise<void> {
+    this.logger.warn(
+      `[STUB] AdvanceProjetoStatusPort.advance — projetoId=${input.projetoId} targetStatus=${input.targetStatus} empresa=${input.empresaId}`,
+    );
+  }
+}

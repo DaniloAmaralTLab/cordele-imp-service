@@ -1,33 +1,45 @@
 import { Module } from '@nestjs/common';
 
-import { PersistenceModule } from '../../infrastructure/persistence/persistence.module';
-import { ImpDomainService } from '../../domain/imp.domain-service';
-import { ImpRepositoryPort } from '../../domain/imp.repository.interface';
-import { PrismaImpRepository } from '../../infrastructure/persistence/prisma-imp.repository';
 import { ImpController } from './imp.controller';
 import { ImpService } from './imp.service';
+import { ImportManuscriptUseCase } from './use-cases/import-manuscript.use-case';
+import { IgnoreSegmentUseCase } from './use-cases/ignore-segment.use-case';
+import { ConfirmEstruturaUseCase } from './use-cases/confirm-estrutura.use-case';
+import {
+  CONFIRM_ESTRUTURA_USE_CASE,
+  IGNORE_SEGMENT_USE_CASE,
+  IMPORT_MANUSCRIPT_USE_CASE,
+} from './imp.tokens';
+
+// Re-export para retrocompatibilidade com código que importe os tokens daqui.
+export {
+  IMPORT_MANUSCRIPT_USE_CASE,
+  IGNORE_SEGMENT_USE_CASE,
+  CONFIRM_ESTRUTURA_USE_CASE,
+} from './imp.tokens';
 
 /**
- * IMP — IMP.
+ * IMP — Importação.
  *
- * Bounded context module. The repository port is bound to its Prisma adapter
- * here, which is the only place in the module that knows persistence exists.
+ * Bounded context module. Não importa infrastructure/ diretamente (RULE-04).
+ * Os ports de repositório, storage, parser e event bus são providos pelos módulos
+ * globais (PersistenceModule, EventBusModule) registrados em AppModule e injetados
+ * via tokens de DI.
+ *
+ * Os stubs de PROJ (CreateProjetoEditorialPort, AdvanceProjetoStatusPort) são
+ * registrados em AppModule até o PROJ service estar disponível.
  */
 @Module({
-  imports: [
-    PersistenceModule,
-  ],
   controllers: [ImpController],
   providers: [
+    // P2: use cases reais substituem os placeholders useValue: null de P1.
+    ImportManuscriptUseCase,
+    IgnoreSegmentUseCase,
+    ConfirmEstruturaUseCase,
+    { provide: IMPORT_MANUSCRIPT_USE_CASE, useClass: ImportManuscriptUseCase },
+    { provide: IGNORE_SEGMENT_USE_CASE, useClass: IgnoreSegmentUseCase },
+    { provide: CONFIRM_ESTRUTURA_USE_CASE, useClass: ConfirmEstruturaUseCase },
     ImpService,
-    // D-603: registered by factory because the domain service carries no Nest
-    // decorator — ADR-001-hexagonal-node rule 7 keeps `src/domain/` free of
-    // `@nestjs/*`. The wiring belongs here, in the application layer, not there.
-    {
-      provide: ImpDomainService,
-      useFactory: () => new ImpDomainService(),
-    },
-    { provide: ImpRepositoryPort, useClass: PrismaImpRepository },
   ],
   exports: [ImpService],
 })

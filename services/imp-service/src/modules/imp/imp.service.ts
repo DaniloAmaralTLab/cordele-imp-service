@@ -1,72 +1,198 @@
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
-
-import { ImpEntity } from '../../domain/imp.entity';
-import { ImpDomainService } from '../../domain/imp.domain-service';
 import {
-  ImpRepositoryPort,
-  type ImpPage,
-  type PageRequest,
-} from '../../domain/imp.repository.interface';
-import { type AuthenticatedUser } from '../../infrastructure/auth/jwt-auth.guard';
-import { CreateImpDto } from './dto/create-imp.dto';
-import { UpdateImpDto } from './dto/update-imp.dto';
+  Inject,
+  Injectable,
+  Logger,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+
+import type { AuthenticatedUser } from '../../domain/auth/authenticated-user';
+import {
+  ManuscritoNaoEncontradoError,
+  ProjetoIntegrationError,
+  SegmentoNaoEncontradoError,
+} from '../../domain/imp/errors';
+import type { Manuscrito } from '../../domain/imp/manuscrito.entity';
+import type { ManuscritoRepositoryPort } from '../../domain/imp/ports/manuscrito-repository.port';
+import { MANUSCRITO_REPOSITORY_PORT } from '../../domain/imp/ports/manuscrito-repository.port';
+import { EstruturaDto } from './dto/estrutura.dto';
+import type { IgnoreSegmentoDto } from './dto/ignore-segmento.dto';
+import { ManuscritoDetailDto } from './dto/manuscrito-detail.dto';
+import type { UploadManuscritoDto } from './dto/upload-manuscrito.dto';
+import {
+  CONFIRM_ESTRUTURA_USE_CASE,
+  IGNORE_SEGMENT_USE_CASE,
+  IMPORT_MANUSCRIPT_USE_CASE,
+} from './imp.tokens';
+import type { ConfirmEstruturaUseCase } from './use-cases/confirm-estrutura.use-case';
+import type { IgnoreSegmentUseCase } from './use-cases/ignore-segment.use-case';
+import type { ImportManuscriptUseCase } from './use-cases/import-manuscript.use-case';
 
 /**
- * Application service for IMP (IMP).
+ * Application service facade para IMP (Importação) — P2.
  *
- * Orchestrates use cases: it loads aggregates through the repository port,
- * asks the domain service to decide, persists the outcome and publishes the
- * resulting integration events. It depends on ports only — never on Prisma.
+ * Delega para os use cases reais; mapeia erros de domínio para exceções NestJS.
+ * Não importa nada de infrastructure/ (RULE-04).
+ * Não importa @prisma/client (RULE-01).
+ * empresaId requerido antes de qualquer repositório (RULE-07).
  */
 @Injectable()
 export class ImpService {
   private readonly logger = new Logger(ImpService.name);
 
   constructor(
-    @Inject(ImpRepositoryPort)
-    private readonly repository: ImpRepositoryPort,
-    private readonly domainService: ImpDomainService,
+    @Inject(IMPORT_MANUSCRIPT_USE_CASE)
+    private readonly importUseCase: ImportManuscriptUseCase,
+
+    @Inject(IGNORE_SEGMENT_USE_CASE)
+    private readonly ignoreSegmentUseCase: IgnoreSegmentUseCase,
+
+    @Inject(CONFIRM_ESTRUTURA_USE_CASE)
+    private readonly confirmEstruturaUseCase: ConfirmEstruturaUseCase,
+
+    @Inject(MANUSCRITO_REPOSITORY_PORT)
+    private readonly manuscritoRepo: ManuscritoRepositoryPort,
   ) {}
 
-  async create(dto: CreateImpDto, user: AuthenticatedUser): Promise<ImpEntity> {
-    const entity = this.domainService.createFrom({
-      name: dto.name,
-      description: dto.description,
-      status: dto.status,
-      empresaId: user.empresaId,
-    });
-
-    const saved = await this.repository.save(entity, user.empresaId);
-    this.logger.log(`IMP created: ${saved.id}`);
-    return saved;
-  }
-
-  async findAll(user: AuthenticatedUser, page: PageRequest): Promise<ImpPage> {
-    return this.repository.findAll(page, user.empresaId);
-  }
-
-  async findOne(id: string, user: AuthenticatedUser): Promise<ImpEntity> {
-    const found = await this.repository.findById(id, user.empresaId);
-    if (!found) {
-      throw new NotFoundException(`IMP ${id} not found`);
-    }
-    return found;
-  }
-
-  async update(
-    id: string,
-    dto: UpdateImpDto,
+  async importManuscrito(
+    dto: UploadManuscritoDto,
     user: AuthenticatedUser,
-  ): Promise<ImpEntity> {
-    const current = await this.findOne(id, user);
-    const next = this.domainService.applyChanges(current, dto);
-    const saved = await this.repository.save(next, user.empresaId);
-    return saved;
+  ): Promise<ManuscritoDetailDto> {
+    this.logger.log(
+      `importManuscrito — projetoId=${dto.projetoId} empresa=${user.empresaId}`,
+    );
+    try {
+      return await this.importUseCase.execute({
+        projetoId: dto.projetoId,
+        filename: dto.filename,
+        // mimeType e fileBuffer serão resolvidos pelo interceptor multipart em P5+.
+        mimeType:
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        fileBuffer: Buffer.alloc(0),
+        empresaId: user.empresaId,
+      });
+    } catch (err) {
+      if (err instanceof ProjetoIntegrationError) {
+        throw new UnprocessableEntityException(err.message);
+      }
+      throw err;
+    }
   }
 
-  async remove(id: string, user: AuthenticatedUser): Promise<void> {
-    await this.findOne(id, user);
-    await this.repository.deleteById(id, user.empresaId);
-    this.logger.log(`IMP deleted: ${id}`);
+  async getManuscrito(
+    id: string,
+    user: AuthenticatedUser,
+  ): Promise<ManuscritoDetailDto> {
+    const ms = await this.manuscritoRepo.findById(id, user.empresaId);
+    if (!ms) {
+      throw new UnprocessableEntityException(
+        new ManuscritoNaoEncontradoError(id).message,
+      );
+    }
+    return this.toDetailDto(ms);
+  }
+
+  async getEstrutura(
+    id: string,
+    user: AuthenticatedUser,
+  ): Promise<EstruturaDto> {
+    const ms = await this.manuscritoRepo.findById(id, user.empresaId);
+    if (!ms) {
+      throw new UnprocessableEntityException(
+        new ManuscritoNaoEncontradoError(id).message,
+      );
+    }
+    const dto = new EstruturaDto();
+    dto.manuscritoId = ms.id;
+    dto.estrutura = ms.estrutura as unknown as Record<string, unknown>;
+    return dto;
+  }
+
+  async listManuscritosByProjeto(
+    projetoId: string,
+    user: AuthenticatedUser,
+  ): Promise<ManuscritoDetailDto[]> {
+    const list = await this.manuscritoRepo.findByProjetoId(
+      projetoId,
+      user.empresaId,
+    );
+    return list.map((ms) => this.toDetailDto(ms));
+  }
+
+  async ignoreSegmento(
+    manuscritoId: string,
+    segId: string,
+    dto: IgnoreSegmentoDto,
+    user: AuthenticatedUser,
+  ): Promise<void> {
+    try {
+      await this.ignoreSegmentUseCase.ignore({
+        manuscritoId,
+        segmentoId: segId,
+        motivo: dto.motivo,
+        empresaId: user.empresaId,
+      });
+    } catch (err) {
+      if (
+        err instanceof SegmentoNaoEncontradoError ||
+        err instanceof ManuscritoNaoEncontradoError
+      ) {
+        throw new UnprocessableEntityException(err.message);
+      }
+      throw err;
+    }
+  }
+
+  async restoreSegmento(
+    manuscritoId: string,
+    segId: string,
+    user: AuthenticatedUser,
+  ): Promise<void> {
+    try {
+      await this.ignoreSegmentUseCase.restore({
+        manuscritoId,
+        segmentoId: segId,
+        empresaId: user.empresaId,
+      });
+    } catch (err) {
+      if (
+        err instanceof SegmentoNaoEncontradoError ||
+        err instanceof ManuscritoNaoEncontradoError
+      ) {
+        throw new UnprocessableEntityException(err.message);
+      }
+      throw err;
+    }
+  }
+
+  async confirmEstrutura(
+    manuscritoId: string,
+    user: AuthenticatedUser,
+  ): Promise<void> {
+    try {
+      await this.confirmEstruturaUseCase.execute({
+        manuscritoId,
+        empresaId: user.empresaId,
+      });
+    } catch (err) {
+      if (
+        err instanceof ManuscritoNaoEncontradoError ||
+        err instanceof ProjetoIntegrationError
+      ) {
+        throw new UnprocessableEntityException(err.message);
+      }
+      throw err;
+    }
+  }
+
+  private toDetailDto(ms: Manuscrito): ManuscritoDetailDto {
+    const dto = new ManuscritoDetailDto();
+    dto.id = ms.id;
+    dto.projetoId = ms.projetoId;
+    dto.empresaId = ms.empresaId;
+    dto.filename = ms.filename;
+    dto.mimeType = ms.mimeType;
+    dto.status = ms.status;
+    dto.createdAt = ms.createdAt;
+    return dto;
   }
 }

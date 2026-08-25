@@ -1,398 +1,733 @@
-# Plano -- IMP (imp-service, Importação)
+<!-- OUTPUT-SCHEMA
+- Status
+- §0 Leitura executiva
+- §1 Achados
+- §2 Estratégia
+- §3 Prioridades
+- §4 Riscos
+- §5 Critérios de aceite
+-->
+
+# Plano — IMP (imp-service, Importação)
+
+## Status
+**Tipo:** Replanejamento
+**Resumo:** Plano arquitetado inicialmente pelo arquiteto; primeira sessão do planner. Gate lint FAIL por 4 violações RULE-04 bloqueantes. O plano reordena P1 para eliminar todas as violações e reconstruir o módulo hexagonal antes de qualquer use case. Score atual: 16/100 Inicial.
 
 ## Status das prioridades
+- P1 — in-review
+- P2 — in-review
+- P3 — in-review
+- P4 — in-review
+- P5 — in-review
+- P6 — in-review
+- P7 — pendente
+- P8 — in-review
 
-- P1 -- pendente
-- P2 -- pendente
-- P3 -- pendente
-- P4 -- pendente
-- P5 -- pendente
-- P7 -- pendente
-- P8 -- pendente
-- P9 -- pendente
+### P6-FIX (remediação gates — 2026-08-25)
+
+Corrigidas 4 suites de teste que falhavam após a validação completa (B6):
+
+1. **`imp.controller.spec.ts`** — mocks dos 4 tokens de DI adicionados ao TestingModule; `afterEach` protegido com guard `if (module)`; detecção de rotas corrigida para usar `Reflect.getMetadata('method', handler)` (RequestMethod enum) em vez de `__httpMethod__`.
+2. **`markdown-parser.adapter.spec.ts`** — suite não rodava por SyntaxError em pacotes ESM-only (`remark-parse`, `unified`, `vfile`, `unist-util-*`). Corrigido via `transformIgnorePatterns` no jest config do `package.json`, cobrindo o layout pnpm (`.pnpm/`). Também corrigido o tratamento de HTML inline em parágrafos no `MarkdownParserAdapter.handleParagraph` (tags como `<video>`, `<audio>`, `<widget>` são inline no remark-parse CommonMark).
+3. **`prisma-manuscrito.repository.spec.ts`** — teste de integração isolado do run unitário via `testPathIgnorePatterns` no jest config. Decisão: requer Testcontainers + PostgreSQL 16; rodar com `pnpm test:integration`. Script `test:integration` adicionado ao `package.json`.
+4. **`docx-parser.adapter.spec.ts`** — fixture `fixtureComImagem` corrigida: adicionado relacionamento `rId1` no `word/_rels/document.xml.rels` e PNG mínimo válido em `word/media/image1.png` para que o mammoth processe o documento sem lançar exceção.
+
+Resultado: `pnpm test` 11/11 suites, 96/96 testes. `pnpm lint` exits 0. `pnpm exec tsc --noEmit` reporta 8 erros pré-existentes de P3 (modelos Prisma não gerados — `Manuscrito` e `SegmentoCuradoria` não estão no `@prisma/client`).
 
 ---
 
-## 0. Leitura executiva
+## §0 Leitura executiva
+
+Primeiro ciclo executivo do IMP. Gate lint FAIL (RULE-04, 4 violações). Score 16/100 Inicial. Nenhuma implementação anterior. Plano do arquiteto tomado como base e reescrito pelo planner com P1 focado em conformidade arquitetural antes de qualquer use case.
 
 ### Papel do serviço
 
-`imp-service` is the **Import** module of the Cordelê modular monolith: it parses uploaded
-DOCX/Markdown manuscripts into a canonical `ContentTree` (chapters → sections → blocks),
-persists the immutable `Manuscrito` aggregate, and emits `ManuscriptImported`. It owns the
-first phase of the editorial pipeline (Upload → Structure Review) and gates entry into
-Composition (COMP).
+`imp-service` é o módulo de **Importação** do Cordelê: recebe uploads de manuscritos DOCX/Markdown, faz parse síncrono para uma `ContentTree` canônica (capítulos → seções → blocos), persiste o agregado imutável `Manuscrito` e emite `ManuscriptImported`. É a fase de entrada do pipeline editorial (Upload → Revisão de Estrutura) e bloqueia o avanço para Composição (COMP).
 
-Key architectural constraints:
-- Parse is **synchronous** in the request cycle (decision D-A): upload returns `201 Created`
-  with the full `ManuscritoDetail` (no async job, no polling).
-- Manuscripts are **immutable** after insert (local ADR-002): re-upload creates a new row.
-- `ProjetoEditorial` is **owned by PROJ** (decision D-C): IMP calls PROJ inbound ports, never
-  writes the `projeto_editorial` table.
-- Two addendum endpoints added in M4: "Ignorar fragmento" (persist editorial annotation) and
-  "Confirmar estrutura" (advance projeto status via PROJ port).
+### Estado atual observado
 
-### MVP scope
+O scaffold gerado pelo arquiteto criou um esqueleto genérico de CRUD (5 rotas `POST/GET/GET/:id/PATCH/DELETE`) que viola RULE-04 em 4 pontos (ver §1). O módulo não possui use cases, ports reais, domain aggregate `Manuscrito`, nem parse adapters. O gate lint falha, bloqueando qualquer validação de funcionalidade.
 
-Upload DOCX/Markdown → parse → persist Manuscrito → return ManuscritoDetail (201).
-Structure Review hydration (GET manuscript + GET estrutura). Import history (GET by project).
-T04 editorial annotations: ignore segment (POST/DELETE) + confirm estrutura (POST).
+### Continuidade da última rodada
 
-### Diagnóstico inicial (gaps mapeados em doc 06)
+Não há rodada anterior de implementação (`last_implement: null`). Este é o primeiro ciclo executivo. O plano do arquiteto (`plan-IMP.md` anterior) é tomado como base, porém P1 é reescrito para tornar a correção RULE-04 o passo 0 obrigatório antes de qualquer nova funcionalidade.
 
-- **A1 (schema-per-tenant provisioning):** shared platform concern; IMP scaffolds `PrismaTenantService` first. P3.
-- **A2 (parser determinism):** covered by SPEC-03; style map must be explicit. P4.
-- **A3 (JSONB vs relational tree):** kept as JSONB in POC; no impact on this plan.
-- **A4 (sync parse):** resolved by D-A; no polling endpoints exist.
-- **M4 addendum:** two new endpoints (§8 api-contract.md) and one new table (`segmento_curadoria`).
+### Estado multi-empresa
+
+`EmpresaContext` via `AsyncLocalStorage` é obrigatório em todo acesso a dados. O `SET search_path` para `emp_{slug}` deve ser ativado pela factory de Prisma antes de qualquer query. `AppModule` importa `AuthModule` globalmente; `ImpModule` jamais importa `infrastructure/`. Schemas alvo: `emp_aetos`.
 
 ---
 
-## 1. Estratégia geral
+## §1 Achados
+
+RULE-04 bloqueante (4 violações). API CRUD genérica (5 rotas) em vez das 7 rotas de negócio. Domain vazio: sem `Manuscrito`, `ContentTree`, `Block`, use cases, nem ports reais. Gate lint FAIL impede validação de funcionalidade.
+
+### Pontos fortes
+
+- Estrutura de diretórios hexagonal básica já existe (`domain/`, `infrastructure/`, `modules/`).
+- `AuthModule` e `DatabaseModule` já estão em `AppModule`.
+- Issues detalhadas (IMP-001..IMP-021 + IMP-INT-001..005) e SPECs completas disponíveis.
+- `PrismaService` disponível via `DatabaseModule`.
+
+### Gaps / Inconsistências
+
+- **RULE-04 — 4 violações bloqueantes (gate lint FAIL):**
+  1. `src/modules/imp/imp.module.ts` importa `PersistenceModule` de `../../infrastructure/persistence/persistence.module`
+  2. `src/modules/imp/imp.module.ts` importa `PrismaImpRepository` de `../../infrastructure/persistence/prisma-imp.repository`
+  3. `src/modules/imp/imp.controller.ts` importa `JwtAuthGuard`, `CurrentUser`, `AuthenticatedUser` de `../../infrastructure/auth/jwt-auth.guard`
+  4. `src/modules/imp/imp.service.ts` importa `AuthenticatedUser` de `../../infrastructure/auth/jwt-auth.guard`
+- **API errada:** 5 rotas CRUD genéricas em vez das 7 rotas de negócio especificadas (`POST /manuscripts`, `GET /manuscripts/:id`, `GET /manuscripts/:id/estrutura`, `GET /projetos/:projetoId/manuscritos`, `POST .../ignore`, `DELETE .../ignore`, `POST .../confirm-estrutura`).
+- **Domain vazio:** `Manuscrito`, `ContentTree`, `Block`, `SegmentoCuradoria` não existem como tipos/entidades de domínio reais.
+- **DI tokens ausentes:** `IMPORT_MANUSCRIPT_USE_CASE`, `IGNORE_SEGMENT_USE_CASE`, `CONFIRM_ESTRUTURA_USE_CASE`, `MANUSCRITO_REPOSITORY_PORT`, `FILE_STORAGE_PORT`, `MANUSCRIPT_PARSER_PORT` não estão declarados.
+
+### Aderência às regras (RULE-01..09)
+
+| Regra | Estado |
+|---|---|
+| RULE-01 domain/ não importa @prisma/client | OK (domain atual não importa) |
+| RULE-02 domain/ não importa @nestjs/common | OK |
+| RULE-03 transações só no application service | N/A (sem use cases) |
+| RULE-04 modules/ não importa infrastructure/ | **FAIL — 4 violações** |
+| RULE-05 infrastructure/ não importa modules/ | OK |
+| RULE-06 HTTP clients só em infrastructure/clients | N/A |
+| RULE-08 sem console.log | OK |
+| RULE-09 DDL só em prisma/migrations | OK |
+
+---
+
+## §2 Estratégia
+
+Replanejamento completo: P1 elimina RULE-04 e reconstrói o módulo hexagonal; P2-P4 constroem use cases, persistence e parse adapters; P5 consolida segurança; P6-P8 completam observabilidade, BDD e hardening. Execução sequencial obrigatória entre P1 e P2 (P2 depende de domain types criados em P1).
 
 ### Objetivo macro
 
-Deliver a compilable, testable NestJS `ImpModule` with full import orchestration, both parse
-adapters, schema-per-tenant persistence, JWT security, and BDD coverage — in 9 priorities
-that the `be-implement` agent can execute one at a time.
+Entregar um `ImpModule` NestJS compilável, testável e com gate lint PASS, com orchestração completa dos use cases de import, adapters de parse DOCX/Markdown, persistência multi-tenant, segurança JWT e cobertura BDD — em 8 prioridades executáveis individualmente pelo `be-implement`.
 
 ### Ordem das prioridades
 
-| P | Título | Motivo |
-|---|---|---|
-| P1 | Scaffold + API surface | Module must compile before use cases can be implemented |
-| P2 | Orchestration (use cases + addendum) | Golden path + PROJ stubs + events — full application layer |
-| P3 | Persistence + migrations | Prisma models + schema-per-tenant factory |
-| P4 | Parse adapters + FileStorage | The `ManuscriptParserPort` implementations (mammoth + remark) |
-| P5 | Security | JWT guard + EmpresaContext — blocks integration testing without it |
-| P7 | Observability | Correlation ID + health — operational readiness |
-| P8 | BDD end-to-end | Cucumber scenarios over the full stack |
-| P9 | Hardening | S3 adapter for production storage |
+| P | Título | Motivo | Issues IMP-NNN |
+|---|---|---|---|
+| P1 | Conformidade RULE-04 + ImpModule hexagonal + ImpController 7 rotas | Gate lint FAIL bloqueia tudo; sem isso nenhuma prioridade subsequente pode ser validada | IMP-001, IMP-002, IMP-003 |
+| P2 | Orchestration — use cases + addendum + stubs PROJ | Camada de aplicação completa antes de conectar infraestrutura real | IMP-004, IMP-005, IMP-006, IMP-007, IMP-008, IMP-INT-001, IMP-INT-002, IMP-INT-003 |
+| P3 | Persistence + migrations | Adapters Prisma + factory schema-per-tenant | IMP-009, IMP-010, IMP-011, IMP-INT-004 |
+| P4 | Parse adapters + FileStorage | Implementações de `ManuscriptParserPort` (mammoth + remark) | IMP-012, IMP-013, IMP-014, IMP-015, IMP-016 |
+| P5 | Security — JWT scope + EmpresaContext | Autenticação e autorização explícitas; requerido para testes de integração | IMP-017 |
+| P6 | Observability + health | X-Correlation-Id + health endpoint — prontidão operacional | IMP-018, IMP-019 |
+| P7 | BDD end-to-end | Cucumber + fixtures — cobertura de cenários completa | IMP-020, IMP-021 |
+| P8 | Hardening — FileStorage S3 | Adapter de produção para armazenamento de arquivos | IMP-INT-005 |
 
 ---
 
-## 2. Plano por prioridade
+## §3 Prioridades
 
-### Prioridade 1 -- Scaffold + API surface
+8 prioridades sequenciais. P1 é pré-condição para todas as demais (elimina RULE-04 e reconstrói domain). P3 depende de P2 (use cases precisam dos ports completos). P5 depende de P3 (integração com Prisma necessária para e2e de auth). P7 depende de P4 e P5 (BDD precisa de parse adapters e segurança funcionais).
+
+### Prioridade 1 — Conformidade RULE-04 + ImpModule hexagonal + ImpController 7 rotas
 
 Status: pendente
+Issues cobertas: IMP-001, IMP-002, IMP-003
 
-#### Objetivo / Resultado esperado
+#### Objetivo
 
-`pnpm build` exits 0. ImpModule registered in AppModule. ImpController declares all 7 routes
-with stub responses. All DI tokens declared.
+Eliminar as 4 violações RULE-04 que bloqueiam o gate lint. Substituir o esqueleto CRUD genérico por um `ImpModule` hexagonal correto, com `ImpController` expondo as 7 rotas de negócio com respostas stub. Declarar todos os DI tokens. `pnpm build` e `pnpm lint` exitam 0 ao final desta prioridade.
 
-#### Issues vinculadas
+#### Problemas identificados
 
-- IMP-001 — NestJS ImpModule + ImpController (7 routes)
-- IMP-002 — DTOs + validation pipes
-- IMP-003 — Domain aggregate Manuscrito + ContentTree / Block value objects
+1. `imp.module.ts` importa `PersistenceModule` e `PrismaImpRepository` diretamente de `infrastructure/` — RULE-04.
+2. `imp.controller.ts` importa `JwtAuthGuard`, `CurrentUser`, `AuthenticatedUser` de `infrastructure/auth/jwt-auth.guard` — RULE-04.
+3. `imp.service.ts` importa `AuthenticatedUser` de `infrastructure/auth/jwt-auth.guard` — RULE-04.
+4. As 5 rotas CRUD não correspondem ao contrato (`api-contract.md §4 + §8`).
+5. Nenhum DI token de negócio está declarado.
 
-#### Specs cobertas
+#### Correções mandatórias
 
-- SPEC-01 (api-contract.md §4 + §8)
+1. Tornar `PersistenceModule` (`src/infrastructure/persistence/persistence.module.ts`) decorado com `@Global()` e exportando os tokens `MANUSCRITO_REPOSITORY_PORT`, `FILE_STORAGE_PORT`, `MANUSCRIPT_PARSER_PORT` com bindings provisórios (`useValue: null`) ou com as classes reais quando P3/P4 estiverem prontos. Nesta prioridade: `useValue: null` para desbloquear compilação.
+2. Remover de `imp.module.ts` todos os imports de `../../infrastructure/`. Declarar apenas providers de use cases com tokens string/symbol. Não importar `PersistenceModule` no `ImpModule`.
+3. Criar `src/domain/auth/authenticated-user.ts` com o tipo `AuthenticatedUser` como interface TypeScript pura (sem imports de `@nestjs/common`).
+4. Criar `src/modules/imp/decorators/current-user.decorator.ts` importando `createParamDecorator` de `@nestjs/common` e reexportando `CurrentUser`.
+5. Substituir `imp.controller.ts` inteiro pelas 7 rotas de negócio; importar `CurrentUser` de `../decorators/current-user.decorator`; importar `AuthenticatedUser` de `../../../domain/auth/authenticated-user`; remover `@UseGuards(JwtAuthGuard)` (o guard global via `APP_GUARD` em `AppModule` protege o endpoint).
+6. Substituir `imp.service.ts` por stub simples (ou remover e delegar para use cases em P2); importar `AuthenticatedUser` de `../../domain/auth/authenticated-user`.
+7. Registrar `{ provide: APP_GUARD, useClass: JwtAuthGuard }` em `AppModule.providers` (adicionar ao array existente junto com `ThrottlerGuard`).
+8. Criar tipos de domínio em `src/domain/imp/`: `manuscrito.entity.ts`, `content-tree.ts`, `block.ts` como classes/interfaces TypeScript puras (sem decoradores Nest, sem imports Prisma).
+9. Criar DTOs em `src/modules/imp/dto/`: `upload-manuscrito.dto.ts`, `manuscrito-detail.dto.ts`, `estrutura-dto.ts`, `ignore-segmento.dto.ts` — todos com `class-validator`.
 
-#### Sequencia de execucao
+#### Alvos de alteração
 
-- Fase 1: IMP-003 (domain types — no dependencies)
-- Fase 2: IMP-002 (DTOs import domain types)
-- Fase 3: IMP-001 (controller imports DTOs; registers DI tokens)
+- `backend/services/imp-service/src/app.module.ts` — adicionar `JwtAuthGuard` ao `APP_GUARD`
+- `backend/services/imp-service/src/infrastructure/persistence/persistence.module.ts` — adicionar `@Global()`, exportar tokens provisórios
+- `backend/services/imp-service/src/modules/imp/imp.module.ts` — remover imports de infrastructure; declarar DI tokens de use cases
+- `backend/services/imp-service/src/modules/imp/imp.controller.ts` — substituir por 7 rotas de negócio; corrigir imports
+- `backend/services/imp-service/src/modules/imp/imp.service.ts` — corrigir import de AuthenticatedUser; stub simples
+- `backend/services/imp-service/src/modules/imp/imp.controller.spec.ts` — novo: testa presença das 7 rotas
+- `backend/services/imp-service/src/modules/imp/decorators/current-user.decorator.ts` — novo
+- `backend/services/imp-service/src/domain/auth/authenticated-user.ts` — novo: tipo puro
+- `backend/services/imp-service/src/domain/imp/manuscrito.entity.ts` — novo
+- `backend/services/imp-service/src/domain/imp/content-tree.ts` — novo
+- `backend/services/imp-service/src/domain/imp/block.ts` — novo
+- `backend/services/imp-service/src/domain/imp/ports/manuscrito-repository.port.ts` — novo
+- `backend/services/imp-service/src/domain/imp/ports/file-storage.port.ts` — novo
+- `backend/services/imp-service/src/domain/imp/ports/manuscript-parser.port.ts` — novo
+- `backend/services/imp-service/src/modules/imp/dto/upload-manuscrito.dto.ts` — novo
+- `backend/services/imp-service/src/modules/imp/dto/manuscrito-detail.dto.ts` — novo
+- `backend/services/imp-service/src/modules/imp/dto/estrutura.dto.ts` — novo
+- `backend/services/imp-service/src/modules/imp/dto/ignore-segmento.dto.ts` — novo
 
-#### Criterios de aceite
+#### Contrato operacional
 
-- `pnpm build` exits 0
-- All 7 routes visible in NestJS route listing
-- All DI tokens declared
+**Deve existir:**
+- Arquivo `src/domain/auth/authenticated-user.ts` sem nenhuma linha que importe `@nestjs/*` ou `@prisma/*`
+- Arquivo `src/modules/imp/imp.module.ts` sem nenhuma linha que contenha `../../infrastructure`
+- Arquivo `src/modules/imp/imp.controller.ts` sem nenhuma linha que contenha `../../infrastructure`
+- Arquivo `src/modules/imp/imp.service.ts` sem nenhuma linha que contenha `../../infrastructure`
+- Rota `POST /api/imp/manuscripts` declarada no controller
+- Rota `GET /api/imp/manuscripts/:id` declarada no controller
+- Rota `GET /api/imp/manuscripts/:id/estrutura` declarada no controller
+- Rota `GET /api/imp/projetos/:projetoId/manuscritos` declarada no controller
+- Rota `POST /api/imp/manuscripts/:id/segmentos/:segId/ignore` declarada no controller
+- Rota `DELETE /api/imp/manuscripts/:id/segmentos/:segId/ignore` declarada no controller
+- Rota `POST /api/imp/manuscripts/:id/confirm-estrutura` declarada no controller
+- `APP_GUARD` com `JwtAuthGuard` registrado em `AppModule`
+- Tokens `IMPORT_MANUSCRIPT_USE_CASE`, `IGNORE_SEGMENT_USE_CASE`, `CONFIRM_ESTRUTURA_USE_CASE` declarados em `imp.module.ts`
+
+**Não deve existir:**
+- Qualquer import de `infrastructure/` dentro de `src/modules/`
+- Rotas CRUD genéricas (`PATCH`, `DELETE` sem `:segId` no controller)
+
+**Verificação objetiva:** `pnpm lint` exits 0. `pnpm build` exits 0. `pnpm test src/modules/imp/imp.controller.spec.ts` exits 0.
+
+**Condição de bloqueio:** Se `pnpm lint` ainda reportar RULE-04 após as alterações, a prioridade não está concluída.
+
+#### Sequência de execução
+
+- Fase 1 (domain): criar `src/domain/auth/authenticated-user.ts`, `src/domain/imp/manuscrito.entity.ts`, `src/domain/imp/content-tree.ts`, `src/domain/imp/block.ts`, `src/domain/imp/ports/*.ts`
+- Fase 2 (module): criar `src/modules/imp/decorators/current-user.decorator.ts`; reescrever `imp.module.ts` sem imports de infrastructure; criar DTOs
+- Fase 3 (infrastructure.global): adicionar `@Global()` em `persistence.module.ts`; exportar tokens provisórios
+- Fase 4 (api): reescrever `imp.controller.ts` com as 7 rotas stub; corrigir `imp.service.ts`
+- Fase 5 (appmodule): adicionar `JwtAuthGuard` ao `APP_GUARD` em `app.module.ts`
+
+#### Política de testes
+
+- Obrigatório: `imp.controller.spec.ts` com teste de presença das 7 rotas via `Reflect.getMetadata` ou teste de routing do NestJS testing
+- Obrigatório: `manuscrito.entity.spec.ts` com testes de criação e validação básica do agregado
+
+#### Multi-empresa
+
+`AuthenticatedUser` deve incluir o campo `empresaId: string` (slug do schema). O controller extrai esse valor via `@CurrentUser()` e passa ao use case como parte do contexto da operação.
+
+#### Migrações Prisma necessárias
+
+Nenhuma nesta prioridade. Schema será definido em P3.
+
+#### Critérios de aceite
+
+- [ ] `pnpm lint` exits 0 (zero violações RULE-04)
+- [ ] `pnpm build` exits 0 com `ImpModule` registrado em `AppModule`
+- [ ] Todas as 7 rotas declaradas no `ImpController` (verificado por `imp.controller.spec.ts`)
+- [ ] Decorators `@nestjs/swagger` presentes em cada rota para geração OpenAPI
+- [ ] DI tokens declarados: `IMPORT_MANUSCRIPT_USE_CASE`, `IGNORE_SEGMENT_USE_CASE`, `CONFIRM_ESTRUTURA_USE_CASE`, `MANUSCRITO_REPOSITORY_PORT`, `FILE_STORAGE_PORT`, `MANUSCRIPT_PARSER_PORT`
+- [ ] `pnpm test src/modules/imp` exits 0
+- [ ] Nenhum arquivo em `src/modules/` contém import de `src/infrastructure/` (verificável por grep)
 
 #### Riscos
 
-Low: this is pure scaffold with no business logic.
+Baixo: mudanças são estruturais, sem lógica de negócio. O risco de regressão é zero pois o scaffold atual não tem testes passando. Atenção ao `APP_GUARD` com múltiplos providers — NestJS suporta múltiplos `APP_GUARD` no array de providers; a ordem é ThrottlerGuard primeiro, JwtAuthGuard segundo.
 
-#### Instrucao para implementador
+#### Instrução para implementador
 
-Create the directory structure `src/modules/imp/`, `src/domain/imp/`, `src/domain/imp/ports/` first.
-Use `pnpm add @nestjs/swagger` if not already in the monolith. Register `ImpModule` in `AppModule`.
+Iniciar pela Fase 1 (domain) para que todos os imports subsequentes sejam válidos. Ao reescrever `imp.module.ts`, declarar os tokens de use cases com `useValue: null` como placeholder até P2. Não remover `PersistenceModule` de `AppModule` — apenas garantir que `ImpModule` não o importe. Em `persistence.module.ts`, adicionar `@Global()` e exportar os tokens provisórios. Verificar com `grep -r "infrastructure" src/modules/` que nenhum import remanescente existe antes de rodar lint.
 
 ---
 
-### Prioridade 2 -- Orchestration (use cases + addendum + stubs)
+### Prioridade 2 — Orchestration: use cases + addendum + stubs PROJ
 
 Status: pendente
+Issues cobertas: IMP-004, IMP-005, IMP-006, IMP-007, IMP-008, IMP-INT-001, IMP-INT-002, IMP-INT-003
 
-#### Objetivo / Resultado esperado
+#### Objetivo
 
-`ImportManuscriptUseCase`, `IgnoreSegmentUseCase`, `ConfirmEstruturaUseCase` implemented and
-unit-tested. PROJ port stubs registered. EventEmitter2 bus wired. All use-case unit tests pass.
+Implementar e unit-testar `ImportManuscriptUseCase`, `IgnoreSegmentUseCase` e `ConfirmEstruturaUseCase`. Registrar stubs dos ports PROJ (IMP-INT-001, IMP-INT-002) e EventEmitter2 bus (IMP-INT-003). Toda a camada de aplicação funciona contra mocks; nenhum adapter real é necessário.
 
-#### Issues vinculadas
+#### Problemas identificados
 
-- IMP-004 — ImportManuscriptUseCase
-- IMP-005 — Project binding D-C
-- IMP-006 — ManuscriptImported + ManuscriptImportRejected events
-- IMP-007 — IgnoreSegmentUseCase (addendum)
-- IMP-008 — ConfirmEstruturaUseCase (addendum)
-- IMP-INT-001 — PROJ port stubs (CreateProjetoEditorialUseCase + Lookup)
-- IMP-INT-002 — AdvanceProjetoStatusUseCase stub (addendum)
-- IMP-INT-003 — EventEmitter2 wiring + PROJ listener stub
+- Use cases não existem; os tokens de DI apontam para `null` após P1.
+- Stubs de PROJ (`CreateProjetoEditorialPort`, `AdvanceProjetoStatusPort`) precisam existir para desbloquear `ImportManuscriptUseCase` e `ConfirmEstruturaUseCase`.
 
-#### Specs cobertas
+#### Correções mandatórias
 
-- SPEC-02, SPEC-09, SPEC-10, api-contract.md §8 (addendum)
+1. Criar `src/modules/imp/use-cases/import-manuscript.use-case.ts` — orquestra port de parser, port de repositório, port de evento; sem import de Prisma ou infrastructure direta.
+2. Criar `src/modules/imp/use-cases/ignore-segment.use-case.ts` — valida `segmentoId` contra `manuscrito.estrutura`; persiste `SegmentoCuradoria`.
+3. Criar `src/modules/imp/use-cases/confirm-estrutura.use-case.ts` — chama `AdvanceProjetoStatusPort`; idempotente.
+4. Criar `src/infrastructure/proj/proj-port.stub.ts` — implementações in-memory de `CreateProjetoEditorialPort` e `AdvanceProjetoStatusPort`; registradas em `AppModule` até PROJ estar disponível.
+5. Criar `src/infrastructure/events/event-bus.module.ts` — wiring de `EventEmitter2`.
+6. Substituir `useValue: null` dos tokens de use cases em `imp.module.ts` pelos providers reais.
 
-#### Sequencia de execucao
+#### Alvos de alteração
 
-- Fase 1: IMP-INT-001 + IMP-INT-002 (stubs first — use cases depend on DI tokens)
-- Fase 2: IMP-INT-003 (EventEmitter2 bus)
-- Fase 3: IMP-004 + IMP-005 + IMP-006 (main import use case)
-- Fase 4: IMP-007 + IMP-008 (addendum use cases)
+- `backend/services/imp-service/src/modules/imp/use-cases/import-manuscript.use-case.ts` — novo
+- `backend/services/imp-service/src/modules/imp/use-cases/import-manuscript.use-case.spec.ts` — novo
+- `backend/services/imp-service/src/modules/imp/use-cases/ignore-segment.use-case.ts` — novo
+- `backend/services/imp-service/src/modules/imp/use-cases/ignore-segment.use-case.spec.ts` — novo
+- `backend/services/imp-service/src/modules/imp/use-cases/confirm-estrutura.use-case.ts` — novo
+- `backend/services/imp-service/src/modules/imp/use-cases/confirm-estrutura.use-case.spec.ts` — novo
+- `backend/services/imp-service/src/domain/imp/ports/proj-port.ts` — novo: interfaces `CreateProjetoEditorialPort`, `AdvanceProjetoStatusPort`
+- `backend/services/imp-service/src/domain/imp/events/manuscript-imported.event.ts` — novo
+- `backend/services/imp-service/src/domain/imp/events/manuscript-import-rejected.event.ts` — novo
+- `backend/services/imp-service/src/infrastructure/proj/proj-port.stub.ts` — novo
+- `backend/services/imp-service/src/infrastructure/events/event-bus.module.ts` — novo
+- `backend/services/imp-service/src/modules/imp/imp.module.ts` — atualizar providers dos use cases de `useValue: null` para `useClass`
 
-#### Criterios de aceite
+#### Contrato operacional
 
-- `pnpm test src/modules/imp/use-cases/` exits 0 (all branches)
-- ImportManuscriptUseCase: happy path, rejection, unparsed segments
-- IgnoreSegmentUseCase: ignore, idempotent ignore, restore, invalid segmentoId
-- ConfirmEstruturaUseCase: success, idempotent, PROJ failure → 422
-- No adapter imported in any use case file
+**Deve existir:**
+- `ImportManuscriptUseCase.execute()` retorna `ManuscritoDetail` após parse bem-sucedido
+- `IgnoreSegmentUseCase.execute()` lança `SegmentoNaoEncontradoError` se `segmentoId` não pertence ao manuscrito
+- `ConfirmEstruturaUseCase.execute()` é idempotente (segunda chamada não lança exceção)
+- Nenhum use case importa `@prisma/client` ou qualquer arquivo de `infrastructure/persistence/`
+
+**Verificação objetiva:** `pnpm test src/modules/imp/use-cases` exits 0 com 100% dos branches cobertos nos cenários especificados.
+
+**Condição de bloqueio:** Qualquer use case que importe `infrastructure/` invalida esta prioridade.
+
+#### Sequência de execução
+
+- Fase 1: IMP-INT-001 + IMP-INT-002 — criar ports de domínio PROJ e stubs
+- Fase 2: IMP-INT-003 — EventEmitter2 bus
+- Fase 3: IMP-004 + IMP-005 + IMP-006 — `ImportManuscriptUseCase` + project binding + events
+- Fase 4: IMP-007 + IMP-008 — `IgnoreSegmentUseCase` + `ConfirmEstruturaUseCase`
+
+#### Política de testes
+
+Obrigatório: testes unit com mocks para todas as branches de cada use case. Usar `jest.fn()` para todos os ports. Cobrir: happy path, parse rejection, manuscrito não encontrado, segmentoId inválido, PROJ failure em `ConfirmEstruturaUseCase` → lança `422`-equivalente.
+
+#### Multi-empresa
+
+`empresaId` deve ser passado explicitamente para `ManuscritoRepositoryPort.save()` e `ManuscritoRepositoryPort.findById()`. O use case não infere `empresaId` do estado interno — recebe do `AuthenticatedUser` passado pelo controller.
+
+#### Migrações Prisma necessárias
+
+Nenhuma nesta prioridade.
+
+#### Critérios de aceite
+
+- [ ] `pnpm test src/modules/imp/use-cases` exits 0
+- [ ] `ImportManuscriptUseCase`: happy path, rejeição, segmentos não-parseados
+- [ ] `IgnoreSegmentUseCase`: ignore, ignore idempotente, restore, segmentoId inválido
+- [ ] `ConfirmEstruturaUseCase`: sucesso, idempotente, falha PROJ → erro mapeado
+- [ ] Nenhum use case contém import de `@prisma/client` (verificável por grep)
 
 #### Riscos
 
-Medium: `IgnoreSegmentUseCase` validates `segmentoId` against JSONB — this requires loading the
-`manuscrito.estrutura` from the repository before persisting. At unit test level, mock the
-repository to return a controlled estrutura.
+Médio: `IgnoreSegmentUseCase` precisa carregar `manuscrito.estrutura` do repositório antes de validar `segmentoId` — o mock do repositório deve retornar uma estrutura controlada para os testes.
 
-#### Instrucao para implementador
+#### Instrução para implementador
 
-Implement all use cases using only port interfaces. Use `class-validator` in DTOs but keep
-domain entities as plain TypeScript. The `resolve-project-binding.ts` helper is shared by
-`ImportManuscriptUseCase` and should be extracted as a separate file tested independently.
+Implementar todos os use cases usando apenas interfaces de port. `resolve-project-binding.ts` é um helper compartilhado entre `ImportManuscriptUseCase` e `ConfirmEstruturaUseCase` — extrair como arquivo separado e testar independentemente. Nenhum adapter real deve ser injetado; todos os ports recebem `useValue: jest.fn()` nos spec files.
 
 ---
 
-### Prioridade 3 -- Persistence + migrations
+### Prioridade 3 — Persistence + migrations
 
 Status: pendente
+Issues cobertas: IMP-009, IMP-010, IMP-011, IMP-INT-004
 
-#### Objetivo / Resultado esperado
+#### Objetivo
 
-Prisma models for `Manuscrito` and `SegmentoCuradoria` in `schema.prisma`. Two migrations.
-`ManuscritoRepository` + `SegmentoCuradoriaRepository` Prisma adapters. Schema-per-tenant factory.
+Prisma models para `Manuscrito` e `SegmentoCuradoria` em `schema.prisma`. Duas migrations. Adapters Prisma para ambos os repositories. Factory schema-per-tenant que troca o `search_path` antes de cada operação.
 
-#### Issues vinculadas
+#### Problemas identificados
 
-- IMP-009 — Prisma schema + migration V0001
-- IMP-010 — ManuscritoRepository Prisma adapter
-- IMP-011 — SegmentoCuradoria Prisma model + migration V0002 + repository
-- IMP-INT-004 — Schema-per-tenant Prisma client factory
+- `schema.prisma` atual contém modelo genérico de scaffold, não os modelos de negócio.
+- Factory schema-per-tenant (`IMP-INT-004`) não existe; sem ela todo acesso a dados ignora o isolamento multi-empresa.
 
-#### Specs cobertas
+#### Correções mandatórias
 
-- SPEC-04
+1. Criar `schema.prisma` com modelos `Manuscrito` (JSONB `estrutura`) e `SegmentoCuradoria`.
+2. Rodar `pnpm prisma migrate dev --name V0001_manuscrito` e `--name V0002_segmento_curadoria`.
+3. Criar `src/infrastructure/persistence/prisma-manuscrito.repository.ts` implementando `ManuscritoRepositoryPort`. O método `save()` usa INSERT apenas (sem UPDATE).
+4. Criar `src/infrastructure/persistence/prisma-segmento-curadoria.repository.ts`.
+5. Criar `src/infrastructure/persistence/tenant-prisma.factory.ts` — executa `SET search_path TO emp_{slug}` antes de cada operação via Prisma middleware ou `$executeRawUnsafe`.
+6. Atualizar `persistence.module.ts` para substituir os `useValue: null` pelos `useClass` reais dos repositories.
 
-#### Sequencia de execucao
+#### Alvos de alteração
 
-- Fase 1: IMP-INT-004 (schema-per-tenant factory — other repos depend on it)
-- Fase 2: IMP-009 (Prisma schema + V0001 migration)
-- Fase 3: IMP-010 (ManuscritoRepository)
+- `backend/services/imp-service/prisma/schema.prisma` — modelos `Manuscrito`, `SegmentoCuradoria`
+- `backend/services/imp-service/prisma/migrations/V0001_manuscrito/` — nova migration
+- `backend/services/imp-service/prisma/migrations/V0002_segmento_curadoria/` — nova migration
+- `backend/services/imp-service/src/infrastructure/persistence/prisma-manuscrito.repository.ts` — novo
+- `backend/services/imp-service/src/infrastructure/persistence/prisma-manuscrito.repository.spec.ts` — novo
+- `backend/services/imp-service/src/infrastructure/persistence/prisma-segmento-curadoria.repository.ts` — novo
+- `backend/services/imp-service/src/infrastructure/persistence/tenant-prisma.factory.ts` — novo
+- `backend/services/imp-service/src/infrastructure/persistence/persistence.module.ts` — substituir `useValue: null`
+
+#### Contrato operacional
+
+**Deve existir:**
+- `pnpm prisma validate` exits 0
+- `ManuscritoRepository.save()` jamais chama `prisma.manuscrito.update()` ou `upsert()`
+- `TenantPrismaFactory` executa `SET search_path TO emp_{slug}` antes de qualquer query
+
+**Verificação objetiva:** `pnpm prisma validate` exits 0. Testes de integração com Testcontainers passam com `emp_aetos` schema provisionado.
+
+**Condição de bloqueio:** `pnpm prisma validate` com exit não-zero bloqueia esta prioridade.
+
+#### Sequência de execução
+
+- Fase 1: IMP-INT-004 (factory schema-per-tenant)
+- Fase 2: IMP-009 (schema.prisma + V0001 migration)
+- Fase 3: IMP-010 (ManuscritoRepository adapter)
 - Fase 4: IMP-011 (SegmentoCuradoria model + V0002 + repository)
 
-#### Criterios de aceite
+#### Política de testes
 
-- `pnpm prisma validate` exits 0
-- `ManuscritoRepository.save()` never calls update/upsert on manuscrito
-- Schema-per-tenant factory switches to `emp_${slug}` per call
+Obrigatório testes de integração com Testcontainers (PostgreSQL 16). Verificar: save em `emp_aetos` não vaza para `cordele_global`. `ManuscritoRepository.save()` chamado duas vezes com mesmo id insere duas linhas (imutabilidade).
+
+#### Multi-empresa
+
+`TenantPrismaFactory.forEmpresa(slug)` é chamado dentro de `ManuscritoRepository` (e não no use case). O repositório recebe `empresaId` como parâmetro de cada método, nunca via estado compartilhado.
+
+#### Migrações Prisma necessárias
+
+Sim: `V0001_manuscrito` e `V0002_segmento_curadoria`. Arquivos em `backend/services/imp-service/prisma/migrations/`.
+
+#### Critérios de aceite
+
+- [ ] `pnpm prisma validate` exits 0
+- [ ] `ManuscritoRepository.save()` não contém chamadas a `update` ou `upsert`
+- [ ] Factory troca schema para `emp_{slug}` por operação (testado com Testcontainers)
+- [ ] Dois migrations gerados em `prisma/migrations/`
 
 #### Riscos
 
-Medium: schema-per-tenant Prisma wiring (IMP-INT-004) requires `$executeRawUnsafe` or Prisma
-middleware — test carefully that the switch is atomic per request.
+Médio: wiring schema-per-tenant com Prisma requer `$executeRawUnsafe` ou middleware — testar atomicidade da troca por request. Usar `AsyncLocalStorage` para propagar o `slug` sem passar por todos os parâmetros.
 
-#### Instrucao para implementador
+#### Instrução para implementador
 
-Start with IMP-INT-004 factory so that repository adapters can be tested against it.
-Run `pnpm prisma migrate dev` on a local PostgreSQL with `emp_aetos` schema already provisioned.
+Iniciar com `IMP-INT-004` para que os repositories possam ser testados contra ela. Rodar `pnpm prisma migrate dev` em PostgreSQL local com `emp_aetos` schema já provisionado. DDL **nunca** em código de aplicação (RULE-09).
 
 ---
 
-### Prioridade 4 -- Parse adapters + FileStorage
+### Prioridade 4 — Parse adapters + FileStorage
 
 Status: pendente
+Issues cobertas: IMP-012, IMP-013, IMP-014, IMP-015, IMP-016
 
-#### Objetivo / Resultado esperado
+#### Objetivo
 
-DOCX (mammoth) and Markdown (remark) adapters implemented and tested with fixtures. All 7
-UnparsedSegment reasons detected. FileStoragePort local-disk adapter operational.
+Adapters DOCX (mammoth) e Markdown (remark) implementados e testados com fixtures reais. Todos os 7 motivos de `UnparsedSegment` detectados. Adapter local de `FileStoragePort` operacional.
 
-#### Issues vinculadas
+#### Problemas identificados
 
-- IMP-012 — ManuscriptParserPort interface + factory
-- IMP-013 — DOCX mammoth adapter
-- IMP-014 — Markdown remark adapter
-- IMP-015 — UnparsedSegment detection (7 reasons)
-- IMP-016 — FileStoragePort local-disk adapter
+- `ManuscriptParserPort` não existe como interface.
+- Nenhum adapter de parse existe.
+- `FileStoragePort` não existe.
 
-#### Specs cobertas
+#### Correções mandatórias
 
-- SPEC-03, SPEC-10
+1. Criar `src/domain/imp/ports/manuscript-parser.port.ts` com interface `ManuscriptParserPort`.
+2. Criar `src/infrastructure/parsers/docx-parser.adapter.ts` usando `mammoth` com style map explícito (H1=chapter, H2=section).
+3. Criar `src/infrastructure/parsers/markdown-parser.adapter.ts` usando `remark` + `remark-parse`.
+4. Criar `src/infrastructure/parsers/parser.factory.ts` — seleciona adapter por MIME type.
+5. Criar `src/infrastructure/storage/local-disk.adapter.ts` implementando `FileStoragePort`.
+6. Implementar detecção dos 7 motivos de `UnparsedSegment` em ambos os adapters.
 
-#### Sequencia de execucao
+#### Alvos de alteração
 
-- Fase 1: IMP-012 (port interface + factory)
-- Fase 2: IMP-016 (FileStorage — needed by DOCX adapter for image extraction)
-- Fase 3: IMP-013 (DOCX adapter)
-- Fase 4: IMP-014 (Markdown adapter)
-- Fase 5: IMP-015 (UnparsedSegment coverage across both adapters)
+- `backend/services/imp-service/src/infrastructure/parsers/docx-parser.adapter.ts` — novo
+- `backend/services/imp-service/src/infrastructure/parsers/docx-parser.adapter.spec.ts` — novo
+- `backend/services/imp-service/src/infrastructure/parsers/markdown-parser.adapter.ts` — novo
+- `backend/services/imp-service/src/infrastructure/parsers/markdown-parser.adapter.spec.ts` — novo
+- `backend/services/imp-service/src/infrastructure/parsers/parser.factory.ts` — novo
+- `backend/services/imp-service/src/infrastructure/storage/local-disk.adapter.ts` — novo
+- `backend/services/imp-service/src/infrastructure/storage/local-disk.adapter.spec.ts` — novo
+- `backend/services/imp-service/src/infrastructure/persistence/persistence.module.ts` — substituir `useValue: null` de `MANUSCRIPT_PARSER_PORT` e `FILE_STORAGE_PORT`
 
-#### Criterios de aceite
+#### Contrato operacional
 
+**Deve existir:**
 - `livro-3-capitulos.docx` → 3 chapters, 2 images, 0 unparsed
-- `livro-com-tabela-complexa.docx` → 1 unparsed (complex_table)
-- All 7 reason types have at least one test
-- Determinism: same input → same tree (tested explicitly)
+- `livro-com-tabela-complexa.docx` → 1 `UnparsedSegment` de razão `complex_table`
+- Determinismo: mesma entrada → mesma `ContentTree` (testado explicitamente)
+- 7 razões de `UnparsedSegment`: cada uma tem pelo menos um fixture de teste
+
+**Verificação objetiva:** `pnpm test src/infrastructure/parsers` exits 0 com todos os cenários de fixture.
+
+**Condição de bloqueio:** Se `livro-corrompido.docx` não gerar exceção no mammoth, o cenário 422 de IMP-020 não pode ser testado.
+
+#### Sequência de execução
+
+- Fase 1: IMP-012 (interface + factory)
+- Fase 2: IMP-016 (FileStorage local — necessário para extração de imagens no DOCX)
+- Fase 3: IMP-013 (adapter DOCX com mammoth)
+- Fase 4: IMP-014 (adapter Markdown com remark)
+- Fase 5: IMP-015 (cobertura dos 7 motivos de UnparsedSegment)
+
+#### Política de testes
+
+Obrigatório: testes unit com fixtures de arquivo real. Determinismo testado explicitamente. Cada razão de `UnparsedSegment` com pelo menos um test case.
+
+#### Multi-empresa
+
+Parse não usa `empresaId` diretamente. O `FileStoragePort.store()` recebe `empresaId` para prefixar o path de armazenamento (`emp_{slug}/{manuscritoId}/`).
+
+#### Migrações Prisma necessárias
+
+Nenhuma.
+
+#### Critérios de aceite
+
+- [ ] `livro-3-capitulos.docx` → 3 chapters, 2 images, 0 unparsed
+- [ ] `livro-com-tabela-complexa.docx` → 1 UnparsedSegment (complex_table)
+- [ ] Todos os 7 motivos têm pelo menos um test case
+- [ ] Determinismo: mesma entrada → mesma ContentTree (testado)
+- [ ] `pnpm test src/infrastructure/parsers` exits 0
 
 #### Riscos
 
-High: DOCX parsing with mammoth requires building a working style map. Invest in the style
-map first; add reasons one by one. `livro-corrompido.docx` must cause mammoth to throw for
-the 422 scenario.
+Alto: parse DOCX com mammoth depende do style map. Investir no style map primeiro; adicionar razões de UnparsedSegment uma a uma. `livro-corrompido.docx` deve ser um zip truncado para forçar exceção.
 
-#### Instrucao para implementador
+#### Instrução para implementador
 
-Run `pnpm add mammoth remark remark-parse unified`. Build the style map from the heading
-hierarchy H1=chapter, H2=section. Tables not in the style map → `complex_table`. Apply IMP-021
-fixtures before running parser tests.
+Executar `pnpm add mammoth remark remark-parse unified`. Style map H1=chapter, H2=section. Tabelas não mapeadas → `complex_table`. Aplicar fixtures antes de rodar testes de parser.
 
 ---
 
-### Prioridade 5 -- Security
+### Prioridade 5 — Security: JWT scope + EmpresaContext
 
 Status: pendente
+Issues cobertas: IMP-017
 
-#### Objetivo / Resultado esperado
+#### Objetivo
 
-JWT guard + scope enforcement + EmpresaContext middleware applied globally to ImpController.
-Cross-tenant access → 404. Missing token → 401. Wrong scope → 403.
+JWT guard com validação de scope e `EmpresaContext` middleware aplicados globalmente ao `ImpController`. Cross-tenant: 404. Token ausente: 401. Scope errado: 403.
 
-#### Issues vinculadas
+#### Problemas identificados
 
-- IMP-017 — OAuth2 JWT guard + scope enforcement + EmpresaContext middleware
+- `JwtAuthGuard` já existe em `infrastructure/auth/` mas não valida scopes de negócio IMP.
+- `EmpresaContext` não é populado antes dos use cases.
 
-#### Specs cobertas
+#### Correções mandatórias
 
-- SPEC-06
+1. Adicionar validação de scope em `JwtAuthGuard` — verificar claim `scope` do JWT contra os scopes permitidos por endpoint.
+2. Criar `src/infrastructure/auth/empresa-context.middleware.ts` — extrai `empresaId` do JWT e popula `AsyncLocalStorage`.
+3. Registrar o middleware em `AppModule` ou `ImpModule` (sem importar do outro).
 
-#### Sequencia de execucao
+#### Alvos de alteração
 
-- Fase única: IMP-017
+- `backend/services/imp-service/src/infrastructure/auth/jwt-auth.guard.ts` — adicionar validação de scope
+- `backend/services/imp-service/src/infrastructure/auth/empresa-context.middleware.ts` — novo
+- `backend/services/imp-service/src/infrastructure/auth/auth.module.ts` — registrar middleware
 
-#### Criterios de aceite
+#### Contrato operacional
 
-- All 7 routes protected (verified by e2e test without token → 401)
-- `EmpresaContext` populated from JWT before any use case executes
-- `pnpm test` exits 0
+**Deve existir:**
+- Todas as 7 rotas protegidas (testado por e2e sem token → 401)
+- `EmpresaContext` populado antes de qualquer use case executar
+- Request com token de empresa A não acessa manuscritos da empresa B (→ 404)
 
-#### Instrucao para implementador
+**Verificação objetiva:** `pnpm test` com testes de integração cobrindo os cenários 401, 403, 404.
 
-Use `passport-jwt` + `jwks-rsa` for JWT validation. The JWK Set URI is `OAUTH2_JWK_SET_URI`.
-In tests, use a self-signed key pair and mock the JWK endpoint.
+#### Sequência de execução
+
+- Fase única: IMP-017 (guard + middleware + testes)
+
+#### Política de testes
+
+Obrigatório: usar par de chaves auto-assinadas e mock do JWK endpoint nos testes. Cobrir: sem token, token expirado, scope errado, empresa errada.
+
+#### Multi-empresa
+
+`EmpresaContext` é o mecanismo central desta prioridade. O middleware popula `AsyncLocalStorage` com `empresaId` do JWT antes do handler.
+
+#### Migrações Prisma necessárias
+
+Nenhuma.
+
+#### Critérios de aceite
+
+- [ ] Todas as 7 rotas retornam 401 sem token (testado)
+- [ ] `EmpresaContext` populado do JWT antes de qualquer use case
+- [ ] Cross-tenant → 404
+
+#### Instrução para implementador
+
+Usar `passport-jwt` + `jwks-rsa`. JWK Set URI em `OAUTH2_JWK_SET_URI` via `ConfigService`. Nos testes, gerar chaves com `jsonwebtoken` e servir via `nock`.
 
 ---
 
-### Prioridade 7 -- Observability + health
+### Prioridade 6 — Observability + health
 
-Status: pendente
+Status: in-review
+Issues cobertas: IMP-018, IMP-019
 
-#### Issues vinculadas
+#### Objetivo
 
-- IMP-018 — X-Correlation-Id interceptor + structured logger
-- IMP-019 — Health/readiness endpoint
+Interceptor de `X-Correlation-Id` e logger estruturado aplicados globalmente. Endpoint `/health` e `/ready` operacionais.
 
-#### Specs cobertas
+#### Alvos de alteração
 
-- SPEC-07
+- `backend/services/imp-service/src/infrastructure/http/correlation-id.interceptor.ts` — novo
+- `backend/services/imp-service/src/infrastructure/health/health.controller.ts` — atualizar com Prisma e FileStorage checks
+- `backend/services/imp-service/src/infrastructure/health/health.module.ts` — atualizar
 
-#### Sequencia de execucao
+#### Contrato operacional
 
-- Fase 1: IMP-018 (interceptor — applies globally, no other dependencies)
-- Fase 2: IMP-019 (health endpoint — depends on PrismaService and FileStoragePort being available)
+**Deve existir:**
+- Header `X-Correlation-Id` presente em toda resposta (gerado se ausente no request)
+- `GET /health` retorna 200 com status de Prisma e FileStorage
+- Logger NestJS (não `console.log`) em todos os use cases
+
+**Verificação objetiva:** `pnpm test` com teste de interceptor passando o header.
+
+#### Sequência de execução
+
+- Fase 1: IMP-018 (interceptor — sem dependências)
+- Fase 2: IMP-019 (health — depende de PrismaService e FileStoragePort disponíveis)
+
+#### Critérios de aceite
+
+- [x] `X-Correlation-Id` presente em toda resposta
+- [x] `GET /health` retorna 200 com checks de Prisma e FileStorage
+- [x] Nenhum `console.log` no codebase (verificado por grep)
 
 ---
 
-### Prioridade 8 -- BDD end-to-end
+### Prioridade 7 — BDD end-to-end
 
 Status: pendente
+Issues cobertas: IMP-020, IMP-021
 
-#### Issues vinculadas
+#### Objetivo
 
-- IMP-021 — Test seed fixtures (6 files)
-- IMP-020 — Cucumber JS step definitions
+Step definitions Cucumber JS + fixtures de teste (6 arquivos). `pnpm test:bdd` exits 0 com todos os cenários passando.
 
-#### Specs cobertas
+#### Alvos de alteração
 
-- SPEC-08
+- `backend/services/imp-service/test/bdd/step-definitions/` — novo diretório com step definitions
+- `backend/services/imp-service/test/bdd/features/import.feature` — novo
+- `backend/services/imp-service/scripts/seed-imp-fixtures.ts` — novo
+- `backend/services/imp-service/test/fixtures/` — 6 arquivos de fixture
+- `backend/services/imp-service/jest-bdd.json` — configuração do runner BDD
 
-#### Sequencia de execucao
+#### Contrato operacional
 
-- Fase 1: IMP-021 (fixtures — seed script + all 6 files)
+**Deve existir:**
+- `pnpm test:bdd` exits 0 com todos os cenários passando
+- `livro-corrompido.docx` fixture presente e disparando 422
+
+**Verificação objetiva:** `pnpm test:bdd` exits 0.
+
+#### Sequência de execução
+
+- Fase 1: IMP-021 (fixtures + seed script)
 - Fase 2: IMP-020 (step definitions + runner config)
 
-#### Criterios de aceite
+#### Critérios de aceite
 
-- `pnpm test:bdd` exits 0 with all scenarios passing
-- `livro-corrompido.docx` fixture present and triggers 422
+- [ ] `pnpm test:bdd` exits 0
+- [ ] `livro-corrompido.docx` fixture presente
+- [ ] Todos os 6 fixtures presentes
 
-#### Instrucao para implementador
+#### Instrução para implementador
 
-Run `pnpm add -D @cucumber/cucumber` if not already in the monolith. Write the seed script
-`scripts/seed-imp-fixtures.ts` that generates the fixtures programmatically (use `docx` npm
-package for DOCX generation). The corrupt DOCX can be a truncated zip: write 100 random bytes
-with a `.docx` extension.
+Executar `pnpm add -D @cucumber/cucumber`. Gerar DOCX com o pacote `docx` npm. `livro-corrompido.docx` = 100 bytes aleatórios com extensão `.docx`.
 
 ---
 
-### Prioridade 9 -- Hardening
+### Prioridade 8 — Hardening: FileStorage S3
 
 Status: pendente
+Issues cobertas: IMP-INT-005
 
-#### Issues vinculadas
+#### Objetivo
 
-- IMP-INT-005 — FileStoragePort S3-compatible adapter
+Adapter de produção S3-compatible para `FileStoragePort` substituindo o adapter local-disk de P4.
 
-#### Specs cobertas
+#### Alvos de alteração
 
-- SPEC-10 (integration-contracts.md §1)
+- `backend/services/imp-service/src/infrastructure/storage/s3.adapter.ts` — novo
+- `backend/services/imp-service/src/infrastructure/storage/s3.adapter.spec.ts` — novo
+- `backend/services/imp-service/src/infrastructure/persistence/persistence.module.ts` — trocar `useClass: LocalDiskAdapter` por `useClass: S3Adapter` (via env flag)
+
+#### Contrato operacional
+
+**Deve existir:**
+- `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` lidos via `ConfigService`
+- Flag `FILE_STORAGE_ADAPTER=s3|local` seleciona o adapter no `persistence.module.ts`
+
+**Verificação objetiva:** `pnpm test src/infrastructure/storage/s3.adapter.spec.ts` exits 0 com mock do SDK S3.
+
+#### Critérios de aceite
+
+- [x] `S3Adapter` implementa `FileStoragePort` completo
+- [x] Seleção por env var `FILE_STORAGE_ADAPTER`
+- [x] Testes com mock do SDK S3
 
 ---
 
-## 3. Dependências externas
+## §4 Riscos
 
-| Dependência | Tipo | Impacto em IMP |
+Risco principal: RULE-04 não eliminada completamente após P1. Risco secundário: factory schema-per-tenant não atômica (cross-tenant leak). Risco de parser: mammoth não detecta todas as razões de UnparsedSegment sem style map correto.
+
+| Risco | Probabilidade | Impacto | Mitigação |
+|---|---|---|---|
+| RULE-04 não eliminada completamente por grep insuficiente | Média | Alto (lint falha) | Rodar `grep -r "infrastructure" src/modules/` após P1 antes de marcar concluído |
+| Wiring de múltiplos `APP_GUARD` provoca conflito de ordem | Baixa | Médio | ThrottlerGuard primeiro, JwtAuthGuard segundo no array |
+| Factory schema-per-tenant não é atômica por request | Média | Alto (cross-tenant leak) | Testar com Testcontainers: duas requests concorrentes com empresas diferentes |
+| mammoth não detecta todas as razões de UnparsedSegment | Alta | Médio | Investir no style map na Fase 1 de P4; adicionar razões incrementalmente |
+| `livro-corrompido.docx` não dispara exceção em mammoth | Média | Médio | Validar com arquivo truncado real antes de escrever o step definition |
+
+---
+
+## §5 Critérios de aceite
+
+Critérios verificáveis objetivamente ao final de todas as prioridades.
+
+- [ ] `pnpm lint` exits 0 (nenhuma violação RULE-04 ou outra)
+- [ ] `pnpm build` exits 0
+- [ ] `pnpm test` exits 0 (unit + integração)
+- [ ] `pnpm test:bdd` exits 0
+- [ ] Nenhum `console.log` no codebase (`grep -r "console.log" src/` retorna vazio)
+- [ ] Nenhum import de `infrastructure/` dentro de `src/modules/` (`grep -r "infrastructure" src/modules/` retorna vazio)
+- [ ] Nenhum import de `@prisma/client` dentro de `src/domain/` (`grep -r "@prisma/client" src/domain/` retorna vazio)
+- [ ] `GET /health` retorna 200 com checks de Prisma e FileStorage
+- [ ] Score do validador >= 60/100 (Intermediário) após P5 concluído
+
+---
+
+## §6 Dependências externas
+
+| Dependência | Tipo | Impacto |
 |---|---|---|
-| PROJ module | In-process NestJS module | IMP-INT-001, IMP-INT-002: stubs required pre-PROJ |
-| PostgreSQL 16 | Database | Tenant schemas `emp_aetos` must exist before integration tests |
+| PROJ module | In-process NestJS (stub em P2) | IMP-INT-001, IMP-INT-002: stubs obrigatórios até PROJ disponível |
+| PostgreSQL 16 | Database | Schemas `emp_aetos` provisionados antes dos testes de integração (P3) |
 | mammoth npm | Parser library | P4 (DOCX adapter) |
-| remark npm | Parser library | P4 (Markdown adapter) |
-| OAUTH2_JWK_SET_URI | External auth endpoint | P5 (JWT validation); mocked in tests |
+| remark + remark-parse + unified | Parser libraries | P4 (Markdown adapter) |
+| OAUTH2_JWK_SET_URI | External auth endpoint | P5 (JWT validation); mockado com nock nos testes |
+| S3 (ou MinIO local) | Object storage | P8 (hardening) |
 
 ---
 
-## 4. Restrições arquiteturais (node)
+## §7 Restrições arquiteturais
 
-- Scoped `no-restricted-imports` in `eslint.config.mjs` (gate `eslintBoundaries`) enforces layer boundaries: `modules/` imports only from `domain/`; `infrastructure/` imports from `domain/` only; no cross-layer upward imports.
-- Prisma transactions only in the application layer (`ImportManuscriptUseCase`); repositories are stateless adapters.
-- `EmpresaContext` (AsyncLocalStorage) populated by middleware before the request reaches any use case; never read from URL path.
-- Manuscripts: INSERT only (no UPDATE) — enforced in `ManuscritoRepository` (the Prisma `update` method is deliberately not called).
-- IMP NEVER imports `projeto_editorial` Prisma model or writes to it directly.
+- `eslint-plugin-boundaries` enforce RULE-04: `src/modules/` jamais importa `src/infrastructure/`
+- `eslint-plugin-boundaries` enforce RULE-01: `src/domain/` jamais importa `@prisma/client`
+- `eslint-plugin-boundaries` enforce RULE-02: `src/domain/` jamais importa `@nestjs/common`
+- Transações Prisma apenas no application service (use cases), jamais nos repositories
+- `EmpresaContext` via `AsyncLocalStorage` — propagação explícita em mensageria (header)
+- Manuscritos: INSERT only (sem UPDATE) — enforced no `ManuscritoRepository`
+- IMP jamais importa modelo Prisma `projeto_editorial` nem escreve na tabela correspondente
 
 ---
 
-## 5. Referências
+## §8 Referências
 
 - `docs/architecture/backend/services/imp-service/contracts/api-contract.md` (§4 + §8 addendum)
-- `docs/architecture/backend/services/imp-service/contracts/data-model.md` (§2.1 + §8 addendum)
+- `docs/architecture/backend/services/imp-service/contracts/data-model.md`
 - `docs/architecture/backend/services/imp-service/contracts/event-contracts.md`
 - `docs/architecture/backend/services/imp-service/contracts/integration-contracts.md` (§3 + §5 addendum)
-- `docs/architecture/backend/services/imp-service/spec/backend/SPEC-01..SPEC-10`
 - `docs/architecture/backend/adr/ADR-001-hexagonal-node.md`
 - `docs/architecture/backend/adr/ADR-002-modular-monolith.md`
 - `docs/architecture/backend/adr/ADR-003-multi-tenancy.md`
 - `docs/architecture/backend/services/imp-service/adr/ADR-002-manuscript-immutability-lossless-parse.md`
+- `docs/architecture/shared/multi-empresa.md`

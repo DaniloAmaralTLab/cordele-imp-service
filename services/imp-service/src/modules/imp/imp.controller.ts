@@ -7,94 +7,138 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
-  Patch,
   Post,
-  Query,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
-  ApiCreatedResponse,
   ApiTags,
 } from '@nestjs/swagger';
 
-import {
-  CurrentUser,
-  JwtAuthGuard,
-  type AuthenticatedUser,
-} from '../../infrastructure/auth/jwt-auth.guard';
-import { ImpEntity } from '../../domain/imp.entity';
-import { CreateImpDto } from './dto/create-imp.dto';
-import { UpdateImpDto } from './dto/update-imp.dto';
+import type { AuthenticatedUser } from '../../domain/auth/authenticated-user';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { EstruturaDto } from './dto/estrutura.dto';
+import { IgnoreSegmentoDto } from './dto/ignore-segmento.dto';
+import { ManuscritoDetailDto } from './dto/manuscrito-detail.dto';
+import { UploadManuscritoDto } from './dto/upload-manuscrito.dto';
 import { ImpService } from './imp.service';
 
 /**
- * HTTP adapter for the IMP (IMP) bounded context.
+ * HTTP adapter para o contexto IMP (Importação).
  *
- * Controllers stay thin: validate (via the global ValidationPipe + DTOs),
- * delegate to the application service, and shape the HTTP response. No
- * business rule lives here.
+ * Controllers são thin: validam via ValidationPipe + DTOs, delegam ao
+ * application service e moldam a resposta HTTP.
+ * Não importa nada de infrastructure/ (RULE-04).
+ * Proteção por JWT global via APP_GUARD em AppModule.
  */
-@ApiTags('imp')
+@ApiTags('manuscripts')
 @ApiBearerAuth('bearer')
-@UseGuards(JwtAuthGuard)
-@Controller({ path: 'imp', version: '1' })
+@Controller('imp')
 export class ImpController {
   constructor(private readonly impService: ImpService) {}
 
-  @Post()
-  @ApiOperation({ summary: 'Create a new imp record' })
-  @ApiCreatedResponse({ description: 'The imp record was created.' })
-  create(
-    @Body() dto: CreateImpDto,
+  /**
+   * POST /api/imp/manuscripts
+   * Upload de manuscrito para um projeto editorial.
+   */
+  @Post('manuscripts')
+  @ApiOperation({ summary: 'Upload e parse de manuscrito' })
+  @ApiCreatedResponse({ type: ManuscritoDetailDto, description: 'Manuscrito importado com sucesso.' })
+  uploadManuscrito(
+    @Body() dto: UploadManuscritoDto,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<ImpEntity> {
-    return this.impService.create(dto, user);
+  ): Promise<ManuscritoDetailDto> {
+    return this.impService.importManuscrito(dto, user);
   }
 
-  @Get()
-  @ApiOperation({ summary: 'List imp records' })
-  @ApiOkResponse({ description: 'Paginated imp records.' })
-  findAll(
-    @CurrentUser() user: AuthenticatedUser,
-    @Query('page') page = 1,
-    @Query('size') size = 20,
-  ): Promise<{ items: ImpEntity[]; total: number }> {
-    return this.impService.findAll(user, { page: Number(page), size: Number(size) });
-  }
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Get a single imp record by id' })
-  @ApiOkResponse({ description: 'The requested imp record.' })
-  findOne(
+  /**
+   * GET /api/imp/manuscripts/:id
+   * Detalhe de um manuscrito pelo id.
+   */
+  @Get('manuscripts/:id')
+  @ApiOperation({ summary: 'Obter detalhe de um manuscrito' })
+  @ApiOkResponse({ type: ManuscritoDetailDto, description: 'Detalhe do manuscrito.' })
+  getManuscrito(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<ImpEntity> {
-    return this.impService.findOne(id, user);
+  ): Promise<ManuscritoDetailDto> {
+    return this.impService.getManuscrito(id, user);
   }
 
-  @Patch(':id')
-  @ApiOperation({ summary: 'Partially update a imp record' })
-  @ApiOkResponse({ description: 'The updated imp record.' })
-  update(
+  /**
+   * GET /api/imp/manuscripts/:id/estrutura
+   * Estrutura (ContentTree) de um manuscrito.
+   */
+  @Get('manuscripts/:id/estrutura')
+  @ApiOperation({ summary: 'Obter estrutura canônica do manuscrito' })
+  @ApiOkResponse({ type: EstruturaDto, description: 'ContentTree do manuscrito.' })
+  getEstrutura(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateImpDto,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<ImpEntity> {
-    return this.impService.update(id, dto, user);
+  ): Promise<EstruturaDto> {
+    return this.impService.getEstrutura(id, user);
   }
 
-  @Delete(':id')
+  /**
+   * GET /api/imp/projetos/:projetoId/manuscritos
+   * Lista de manuscritos de um projeto.
+   */
+  @Get('projetos/:projetoId/manuscritos')
+  @ApiOperation({ summary: 'Listar manuscritos de um projeto' })
+  @ApiOkResponse({ type: [ManuscritoDetailDto], description: 'Lista de manuscritos do projeto.' })
+  listManuscritosByProjeto(
+    @Param('projetoId', ParseUUIDPipe) projetoId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ManuscritoDetailDto[]> {
+    return this.impService.listManuscritosByProjeto(projetoId, user);
+  }
+
+  /**
+   * POST /api/imp/manuscripts/:id/segmentos/:segId/ignore
+   * Ignorar um segmento de curadoria.
+   */
+  @Post('manuscripts/:id/segmentos/:segId/ignore')
+  @ApiOperation({ summary: 'Ignorar segmento de curadoria' })
+  @ApiOkResponse({ description: 'Segmento ignorado com sucesso.' })
+  ignoreSegmento(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('segId') segId: string,
+    @Body() dto: IgnoreSegmentoDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    return this.impService.ignoreSegmento(id, segId, dto, user);
+  }
+
+  /**
+   * DELETE /api/imp/manuscripts/:id/segmentos/:segId/ignore
+   * Restaurar (desfazer ignore) um segmento de curadoria.
+   */
+  @Delete('manuscripts/:id/segmentos/:segId/ignore')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a imp record' })
-  @ApiNoContentResponse({ description: 'The imp record was deleted.' })
-  remove(
+  @ApiOperation({ summary: 'Restaurar segmento ignorado' })
+  @ApiNoContentResponse({ description: 'Segmento restaurado (ignore desfeito).' })
+  restoreSegmento(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('segId') segId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    return this.impService.restoreSegmento(id, segId, user);
+  }
+
+  /**
+   * POST /api/imp/manuscripts/:id/confirm-estrutura
+   * Confirmar a estrutura de um manuscrito (avança o pipeline para Composição).
+   */
+  @Post('manuscripts/:id/confirm-estrutura')
+  @ApiOperation({ summary: 'Confirmar estrutura do manuscrito' })
+  @ApiOkResponse({ description: 'Estrutura confirmada; manuscrito avançado para Composição.' })
+  confirmEstrutura(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<void> {
-    return this.impService.remove(id, user);
+    return this.impService.confirmEstrutura(id, user);
   }
 }
