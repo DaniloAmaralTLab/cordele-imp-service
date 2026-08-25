@@ -1,0 +1,15 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "bdd",
+  "testEnvironment": "node",
+  "testRegex": "\\.steps\\.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^src/(.*)$": "<rootDir>/../../src/$1"
+  },
+  "setupFilesAfterEnv": [],
+  "testTimeout": 30000,
+  "maxWorkers": 1
+}
