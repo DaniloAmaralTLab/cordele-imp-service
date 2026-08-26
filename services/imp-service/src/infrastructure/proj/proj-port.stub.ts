@@ -7,6 +7,7 @@ import type {
   CreateProjetoEditorialOutput,
   CreateProjetoEditorialPort,
 } from '../../domain/imp/ports/proj-port';
+import type { FindProjetoOutput, FindProjetoPort } from '../../domain/imp/ports/find-projeto.port';
 
 /**
  * Stub in-memory para CreateProjetoEditorialPort (IMP-INT-001).
@@ -43,5 +44,25 @@ export class AdvanceProjetoStatusStub implements AdvanceProjetoStatusPort {
     this.logger.warn(
       `[STUB] AdvanceProjetoStatusPort.advance — projetoId=${input.projetoId} targetStatus=${input.targetStatus} empresa=${input.empresaId}`,
     );
+  }
+}
+
+/**
+ * Stub in-memory para FindProjetoPort (D-C).
+ *
+ * Registrado em ProjStubModule para uso em desenvolvimento e testes BDD.
+ * Aceita qualquer projetoId (simula que todo projeto existe na empresa ativa).
+ * Em produção, substituído por um adapter HTTP ou in-process que consulta PROJ.
+ */
+@Injectable()
+export class FindProjetoStub implements FindProjetoPort {
+  private readonly logger = new Logger(FindProjetoStub.name);
+
+  async findById(projetoId: string, empresaId: string): Promise<FindProjetoOutput | null> {
+    this.logger.warn(
+      `[STUB] FindProjetoPort.findById — projetoId=${projetoId} empresa=${empresaId} → aceito`,
+    );
+    // Stub de desenvolvimento: todo projetoId é considerado existente.
+    return { projetoId };
   }
 }

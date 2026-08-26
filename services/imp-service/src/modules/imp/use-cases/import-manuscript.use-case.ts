@@ -1,9 +1,19 @@
+import { randomUUID } from 'node:crypto';
+
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
+import {
+  ArquivoGrandeDemaisError,
+  FormatoNaoSuportadoError,
+  ProjectBindingInvalidError,
+  ProjetoNaoEncontradoError,
+} from '../../../domain/imp/errors';
 import type { IEventBus } from '../../../domain/imp/ports/event-bus.port';
 import { EVENT_BUS_PORT } from '../../../domain/imp/ports/event-bus.port';
 import type { FileStoragePort } from '../../../domain/imp/ports/file-storage.port';
 import { FILE_STORAGE_PORT } from '../../../domain/imp/ports/file-storage.port';
+import type { FindProjetoPort } from '../../../domain/imp/ports/find-projeto.port';
+import { FIND_PROJETO_PORT } from '../../../domain/imp/ports/find-projeto.port';
 import type { ManuscriptParserPort } from '../../../domain/imp/ports/manuscript-parser.port';
 import {
   MANUSCRIPT_PARSER_PORT,
@@ -20,22 +30,38 @@ import { ManuscriptImportedEvent } from '../../../domain/imp/events/manuscript-i
 import { Manuscrito } from '../../../domain/imp/manuscrito.entity';
 import type { ManuscritoMimeType } from '../../../domain/imp/manuscrito.entity';
 import { ManuscritoDetailDto } from '../dto/manuscrito-detail.dto';
-import { resolveProjectBinding } from './resolve-project-binding';
+
+/** Tamanho máximo do arquivo: 50 MiB (52 428 800 bytes) — api-contract.md §4.1 */
+const MAX_FILE_SIZE_BYTES = 52_428_800;
+
+/** Extensões e MIME types aceitos pelo import. */
+const SUPPORTED_EXTENSIONS = new Set(['docx', 'md']);
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const MARKDOWN_MIME = 'text/markdown';
 
 export interface ImportManuscriptCommand {
-  readonly projetoId: string;
   readonly filename: string;
   readonly mimeType: string;
   readonly fileBuffer: Buffer;
+  /** Exatamente um dos dois deve ser fornecido (D-C). */
+  readonly projetoId?: string;
+  readonly projetoTitulo?: string;
   /** Slug da empresa — requerido para isolamento multi-empresa (RULE-07). */
   readonly empresaId: string;
 }
 
 /**
- * Use case: ImportManuscriptUseCase (IMP-004 + IMP-005 + IMP-006).
+ * Use case: ImportManuscriptUseCase (IMP-004 + IMP-005 + IMP-006 + D-A + D-C).
  *
- * Orquestra: parse do arquivo → armazenamento → criação do agregado →
- * binding ao projeto → persistência → emissão de evento.
+ * Orquestra: validação de tamanho → validação de formato → project binding →
+ * parse → armazenamento → criação do agregado → persistência → emissão de evento.
+ *
+ * Validações EARS:
+ * - IF file > 50 MB → ArquivoGrandeDemaisError (413)
+ * - IF formato inválido → FormatoNaoSuportadoError (415)
+ * - IF nenhum ou ambos projetoId/projetoTitulo → ProjectBindingInvalidError (400)
+ * - IF projetoId não existe na empresa ativa → ProjetoNaoEncontradoError (422)
+ * - IF parse irrecuperável → ManuscriptParseError (422)
  *
  * Não importa @prisma/client nem infrastructure/ diretamente (RULE-01/02/04).
  * empresaId requerido antes do primeiro acesso ao repositório (RULE-07).
@@ -57,40 +83,85 @@ export class ImportManuscriptUseCase {
     @Inject(CREATE_PROJETO_EDITORIAL_PORT)
     private readonly createProjeto: CreateProjetoEditorialPort,
 
+    @Inject(FIND_PROJETO_PORT)
+    private readonly findProjeto: FindProjetoPort,
+
     @Inject(EVENT_BUS_PORT)
     private readonly eventBus: IEventBus,
   ) {}
 
   async execute(command: ImportManuscriptCommand): Promise<ManuscritoDetailDto> {
-    const { projetoId, filename, mimeType, fileBuffer, empresaId } = command;
+    const { filename, fileBuffer, empresaId, projetoId, projetoTitulo } = command;
 
-    // Valida suporte do parser antes de qualquer operação de I/O.
-    if (!this.parser.supports(mimeType)) {
-      const rejectedEvent = new ManuscriptImportRejectedEvent(
-        filename,
-        empresaId,
-        `Unsupported mimeType: ${mimeType}`,
-      );
-      await this.eventBus.publish(rejectedEvent);
-      throw new ManuscriptParseError(`Unsupported mimeType: ${mimeType}`);
+    // ── 1. Validação de tamanho (413) — antes de qualquer I/O ────────────────
+    if (fileBuffer.length > MAX_FILE_SIZE_BYTES) {
+      throw new ArquivoGrandeDemaisError(fileBuffer.length);
     }
 
-    // Parse do conteúdo.
+    // ── 2. Validação de formato (415) — baseada na extensão do arquivo ───────
+    const resolvedMime = this.resolveMimeType(filename);
+    if (!resolvedMime) {
+      throw new FormatoNaoSuportadoError(filename);
+    }
+
+    // ── 3. Validação de project binding (400) — D-C ───────────────────────────
+    if (!projetoId && !projetoTitulo) {
+      throw new ProjectBindingInvalidError('none');
+    }
+    if (projetoId && projetoTitulo) {
+      throw new ProjectBindingInvalidError('both');
+    }
+
+    // ── 4. Resolução do projetoId ─────────────────────────────────────────────
+    let resolvedProjetoId: string;
+
+    if (projetoId) {
+      // Valida que o projeto existe na empresa ativa (422 se não existir).
+      const found = await this.findProjeto.findById(projetoId, empresaId);
+      if (!found) {
+        throw new ProjetoNaoEncontradoError(projetoId);
+      }
+      resolvedProjetoId = found.projetoId;
+    } else {
+      // projetoTitulo: cria o projeto via PROJ port antes do parse.
+      const manuscritoId = randomUUID();
+      const created = await this.createProjeto.create({
+        manuscritoId,
+        titulo: projetoTitulo!,
+        empresaId,
+      });
+      resolvedProjetoId = created.projetoId;
+      // Continuar com o manuscritoId pré-alocado para manter a consistência.
+      return this.runImport(command, resolvedMime, resolvedProjetoId, manuscritoId);
+    }
+
+    return this.runImport(command, resolvedMime, resolvedProjetoId);
+  }
+
+  private async runImport(
+    command: ImportManuscriptCommand,
+    mimeType: string,
+    projetoId: string,
+    preallocatedId?: string,
+  ): Promise<ManuscritoDetailDto> {
+    const { filename, fileBuffer, empresaId } = command;
+
+    // ── 5. Parse do conteúdo ──────────────────────────────────────────────────
     let estrutura;
     try {
       estrutura = await this.parser.parse(fileBuffer, mimeType);
     } catch (err) {
-      const reason = err instanceof ManuscriptParseError
-        ? err.reason
-        : String(err);
+      const reason = err instanceof ManuscriptParseError ? err.reason : String(err);
       await this.eventBus.publish(
         new ManuscriptImportRejectedEvent(filename, empresaId, reason),
       );
-      throw err;
+      // Re-throw como ManuscriptParseError para o filtro capturar.
+      if (err instanceof ManuscriptParseError) throw err;
+      throw new ManuscriptParseError(String(err), err);
     }
 
-    // Armazenamento do arquivo (RULE-07: empresaId requerido).
-    const manuscritoId = crypto.randomUUID();
+    // ── 6. Armazenamento do arquivo (RULE-07: empresaId requerido) ────────────
+    const manuscritoId = preallocatedId ?? randomUUID();
     const storageKey = await this.fileStorage.store(
       fileBuffer,
       filename,
@@ -99,8 +170,7 @@ export class ImportManuscriptUseCase {
       manuscritoId,
     );
 
-    // Criação do agregado Manuscrito.
-    // tamanhoBytes populado com o tamanho real do buffer (constraint DB: > 0 e <= 52428800).
+    // ── 7. Criação do agregado Manuscrito ─────────────────────────────────────
     const manuscrito = Manuscrito.create({
       id: manuscritoId,
       projetoId,
@@ -112,27 +182,32 @@ export class ImportManuscriptUseCase {
       tamanhoBytes: BigInt(fileBuffer.length),
     });
 
-    // Persistência (RULE-07: empresaId explícito).
+    // ── 8. Persistência (RULE-07: empresaId explícito) ────────────────────────
     const saved = await this.manuscritoRepo.save(manuscrito, empresaId);
 
-    // Binding ao ProjetoEditorial (IMP-INT-001).
-    const titulo = filename.replace(/\.[^.]+$/, '');
-    await resolveProjectBinding(this.createProjeto, {
-      manuscritoId: saved.id,
-      titulo,
-      empresaId,
-    });
-
-    // Emissão de evento de domínio (IMP-INT-003).
+    // ── 9. Emissão de evento de domínio (IMP-INT-003) ─────────────────────────
     await this.eventBus.publish(
       new ManuscriptImportedEvent(saved.id, projetoId, empresaId, filename),
     );
 
     this.logger.log(
-      `Manuscrito '${saved.id}' importado com sucesso — empresa=${empresaId}`,
+      `Manuscrito '${saved.id}' importado — empresa=${empresaId} projeto=${projetoId}`,
     );
 
     return this.toDto(saved);
+  }
+
+  /**
+   * Resolve o MIME type a partir da extensão do arquivo.
+   * Retorna null se o formato não for suportado.
+   * Não confia no Content-Type do cliente (pode ser falsificado).
+   */
+  private resolveMimeType(filename: string): string | null {
+    const ext = filename.toLowerCase().split('.').pop() ?? '';
+    if (!SUPPORTED_EXTENSIONS.has(ext)) return null;
+    if (ext === 'docx') return DOCX_MIME;
+    if (ext === 'md') return MARKDOWN_MIME;
+    return null;
   }
 
   private toDto(manuscrito: Manuscrito): ManuscritoDetailDto {
@@ -143,7 +218,32 @@ export class ImportManuscriptUseCase {
     dto.filename = manuscrito.filename;
     dto.mimeType = manuscrito.mimeType;
     dto.status = manuscrito.status;
+    dto.estrutura = manuscrito.estrutura;
+    dto.totalCapitulos = manuscrito.estrutura.chapters.length;
+    dto.totalImagens = this.countImages(manuscrito.estrutura);
+    dto.trechosNaoParseados = this.countUnparsed(manuscrito.estrutura);
     dto.createdAt = manuscrito.createdAt;
     return dto;
+  }
+
+  private countImages(estrutura: Manuscrito['estrutura']): number {
+    let count = 0;
+    for (const chapter of estrutura.chapters) {
+      for (const section of chapter.sections) {
+        count += section.blocks.filter((b) => b.type === 'image').length;
+      }
+    }
+    return count;
+  }
+
+  private countUnparsed(estrutura: Manuscrito['estrutura']): number {
+    let count = 0;
+    for (const chapter of estrutura.chapters) {
+      for (const section of chapter.sections) {
+        count += section.unparsedSegments.length;
+      }
+    }
+    count += estrutura.orphanUnparsedSegments.length;
+    return count;
   }
 }

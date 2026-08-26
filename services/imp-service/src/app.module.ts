@@ -1,24 +1,18 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { JwtAuthGuard } from './infrastructure/auth/jwt-auth.guard';
 import { CorrelationIdInterceptor } from './infrastructure/http/correlation-id.interceptor';
+import { ProblemDetailFilter } from './infrastructure/http/problem-detail.filter';
 import { AuthModule } from './infrastructure/auth/auth.module';
 import { EmpresaContextMiddleware } from './infrastructure/auth/empresa-context.middleware';
 import { DatabaseModule } from './infrastructure/persistence/database.module';
 import { PersistenceModule } from './infrastructure/persistence/persistence.module';
 import { EventBusModule } from './infrastructure/events/event-bus.module';
 import { HealthModule } from './infrastructure/health/health.module';
-import {
-  AdvanceProjetoStatusStub,
-  CreateProjetoEditorialStub,
-} from './infrastructure/proj/proj-port.stub';
-import {
-  ADVANCE_PROJETO_STATUS_PORT,
-  CREATE_PROJETO_EDITORIAL_PORT,
-} from './domain/imp/ports/proj-port';
+import { ProjStubModule } from './infrastructure/proj/proj-stub.module';
 import { ImpModule } from './modules/imp/imp.module';
 
 /**
@@ -37,8 +31,9 @@ import { ImpModule } from './modules/imp/imp.module';
  * decodificando o JWT Bearer sem verificação criptográfica (a verificação
  * acontece no JwtAuthGuard, que roda depois). RULE-07.
  *
- * Stubs PROJ (P2): CreateProjetoEditorialStub + AdvanceProjetoStatusStub registrados
- * globalmente até o PROJ service estar disponível (IMP-INT-001 + IMP-INT-002).
+ * Stubs PROJ (P2): CreateProjetoEditorialStub + AdvanceProjetoStatusStub providos pelo
+ * ProjStubModule (@Global) até o PROJ service estar disponível (IMP-INT-001 + IMP-INT-002).
+ * ProjStubModule exporta os tokens, tornando-os visíveis para ImpModule sem violar RULE-04.
  */
 @Module({
   imports: [
@@ -52,19 +47,18 @@ import { ImpModule } from './modules/imp/imp.module';
     DatabaseModule,
     PersistenceModule,
     EventBusModule,
+    ProjStubModule,
     AuthModule,
     ImpModule,
   ],
   providers: [
+    // Global exception filter — RFC 7807 Problem Detail (domain + HTTP errors).
+    // Registrado antes dos guards para cobrir toda a pilha.
+    { provide: APP_FILTER, useClass: ProblemDetailFilter },
     // Global interceptors — applied to every HTTP response (order: first registered, first applied).
     { provide: APP_INTERCEPTOR, useClass: CorrelationIdInterceptor },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
-    // PROJ stubs — substituídos por clients HTTP reais quando PROJ service estiver disponível.
-    CreateProjetoEditorialStub,
-    { provide: CREATE_PROJETO_EDITORIAL_PORT, useClass: CreateProjetoEditorialStub },
-    AdvanceProjetoStatusStub,
-    { provide: ADVANCE_PROJETO_STATUS_PORT, useClass: AdvanceProjetoStatusStub },
   ],
 })
 export class AppModule implements NestModule {

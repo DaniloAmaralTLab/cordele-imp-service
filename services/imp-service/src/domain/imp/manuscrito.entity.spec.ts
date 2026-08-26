@@ -24,9 +24,9 @@ describe('Manuscrito', () => {
   };
 
   describe('Manuscrito.create()', () => {
-    it('should create a Manuscrito with PENDING_REVIEW status', () => {
+    it('should create a Manuscrito with imported status (D-B: synchronous parse)', () => {
       const m = Manuscrito.create(baseProps);
-      expect(m.status).toBe('PENDING_REVIEW');
+      expect(m.status).toBe('imported');
     });
 
     it('should assign createdAt automatically', () => {

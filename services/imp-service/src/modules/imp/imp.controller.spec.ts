@@ -183,10 +183,17 @@ describe('ImpController — P1 route presence', () => {
     });
 
     it('importManuscrito throws NotImplementedException', async () => {
+      const fakeFile = {
+        originalname: 'f.docx',
+        mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        buffer: Buffer.alloc(0),
+        size: 0,
+      } as Express.Multer.File;
       await expect(
         service.importManuscrito(
-          { projetoId: 'proj-1', filename: 'f.docx' },
+          { projetoId: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b22' },
           { userId: 'u1', username: 'u', roles: [], scopes: [], empresaId: 'aetos' },
+          fakeFile,
         ),
       ).rejects.toBeInstanceOf(NotImplementedException);
     });

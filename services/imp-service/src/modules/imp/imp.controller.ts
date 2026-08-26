@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -8,9 +9,13 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
@@ -42,16 +47,22 @@ export class ImpController {
 
   /**
    * POST /api/imp/manuscripts
-   * Upload de manuscrito para um projeto editorial.
+   * Upload e parse síncrono de manuscrito (multipart/form-data — D-A / D-C).
    */
   @Post('manuscripts')
-  @ApiOperation({ summary: 'Upload e parse de manuscrito' })
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload e parse síncrono de manuscrito' })
   @ApiCreatedResponse({ type: ManuscritoDetailDto, description: 'Manuscrito importado com sucesso.' })
   uploadManuscrito(
     @Body() dto: UploadManuscritoDto,
     @CurrentUser() user: AuthenticatedUser,
+    @UploadedFile() file: Express.Multer.File | undefined,
   ): Promise<ManuscritoDetailDto> {
-    return this.impService.importManuscrito(dto, user);
+    if (!file) {
+      throw new BadRequestException('O campo "file" (arquivo) é obrigatório.');
+    }
+    return this.impService.importManuscrito(dto, user, file);
   }
 
   /**
@@ -131,8 +142,10 @@ export class ImpController {
   /**
    * POST /api/imp/manuscripts/:id/confirm-estrutura
    * Confirmar a estrutura de um manuscrito (avança o pipeline para Composição).
+   * Retorna 200 OK (contrato api-contract.md §8.3) — não cria recurso novo, é um comando.
    */
   @Post('manuscripts/:id/confirm-estrutura')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirmar estrutura do manuscrito' })
   @ApiOkResponse({ description: 'Estrutura confirmada; manuscrito avançado para Composição.' })
   confirmEstrutura(

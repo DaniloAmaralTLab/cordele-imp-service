@@ -128,9 +128,11 @@ describe('Security integration (IMP-017)', () => {
   });
 
   it('returns 401 when no token is provided', async () => {
-    // Override guard to fail (simulates missing/expired token → 401).
+    // Simulates missing/expired token: AuthGuard throws UnauthorizedException (not returns false).
+    // Returning false would make NestJS emit 403 (ForbiddenException) instead of 401.
+    const { UnauthorizedException } = await import('@nestjs/common');
     jest.spyOn(Object.getPrototypeOf(Object.getPrototypeOf(realGuard)), 'canActivate')
-      .mockResolvedValueOnce(false);
+      .mockRejectedValueOnce(new UnauthorizedException());
 
     await request(app.getHttpServer())
       .get('/test/secure')

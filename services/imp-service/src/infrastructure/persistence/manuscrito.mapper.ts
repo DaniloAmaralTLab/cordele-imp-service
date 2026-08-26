@@ -97,6 +97,9 @@ export class ManuscritoMapper {
     // Estados futuros (REVISAO_ESTRUTURA, IGNORADO, CONFIRMADO) aguardam
     // expansão do schema Prisma (nova migration).
     const map: Record<ManuscritoStatus, string> = {
+      imported: 'imported',
+      parsing: 'imported',
+      import_failed: 'imported',
       PENDING_REVIEW: 'imported',
       REVISAO_ESTRUTURA: 'imported',
       IGNORADO: 'imported',

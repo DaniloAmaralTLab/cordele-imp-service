@@ -33,3 +33,40 @@ export class ProjetoIntegrationError extends Error {
     this.originalCause = originalCause;
   }
 }
+
+/** Lançado quando o formato do arquivo não é suportado (DOCX ou Markdown). → 415 */
+export class FormatoNaoSuportadoError extends Error {
+  constructor(format: string) {
+    super(`Formato não suportado: '${format}'. Apenas DOCX e Markdown são aceitos.`);
+    this.name = 'FormatoNaoSuportadoError';
+  }
+}
+
+/** Lançado quando o arquivo excede o tamanho máximo de 50 MiB. → 413 */
+export class ArquivoGrandeDemaisError extends Error {
+  constructor(sizeBytes: number) {
+    const sizeMB = (sizeBytes / (1024 * 1024)).toFixed(1);
+    super(`O arquivo tem ${sizeMB} MB; o máximo é 50 MB.`);
+    this.name = 'ArquivoGrandeDemaisError';
+  }
+}
+
+/** Lançado quando projetoId não existe na empresa ativa. → 422 projeto-not-found */
+export class ProjetoNaoEncontradoError extends Error {
+  constructor(projetoId: string) {
+    super(`Projeto '${projetoId}' não encontrado na empresa ativa.`);
+    this.name = 'ProjetoNaoEncontradoError';
+  }
+}
+
+/** Lançado quando o project binding é inválido (nenhum ou ambos os campos fornecidos). → 400 */
+export class ProjectBindingInvalidError extends Error {
+  constructor(reason: 'both' | 'none') {
+    super(
+      reason === 'both'
+        ? 'Forneça apenas um de projetoId ou projetoTitulo, não ambos.'
+        : 'Forneça projetoId (projeto existente) ou projetoTitulo (criar projeto).',
+    );
+    this.name = 'ProjectBindingInvalidError';
+  }
+}

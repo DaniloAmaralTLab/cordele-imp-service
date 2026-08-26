@@ -11,18 +11,18 @@
 # Plano — IMP (imp-service, Importação)
 
 ## Status
-**Tipo:** Replanejamento
-**Resumo:** Plano arquitetado inicialmente pelo arquiteto; primeira sessão do planner. Gate lint FAIL por 4 violações RULE-04 bloqueantes. O plano reordena P1 para eliminar todas as violações e reconstruir o módulo hexagonal antes de qualquer use case. Score atual: 16/100 Inicial.
+**Tipo:** Ciclo de Validação (FULL-VALIDACAO)
+**Resumo:** Após P8-FIX-e2e (2026-08-25T23:38:22Z) que remediou DI do ProjStubModule e reescreveu e2e suite. FULL-VALIDACAO (2026-08-25T23:50Z): gates test=PASS (114/114, 14 suites), build=PASS, e2e=PASS (14/14, 2 suites), lint=PASS, arch-conformance=PASS. Score 90/100 (Maduro). Checklist IMP-001: 5/5 DONE. Ciclo B6 APROVADO.
 
 ## Status das prioridades
-- P1 — in-review
-- P2 — in-review
-- P3 — in-review
-- P4 — in-review
-- P5 — in-review
-- P6 — in-review
-- P7 — pendente
-- P8 — in-review
+- P1 — done
+- P2 — done
+- P3 — done
+- P4 — done
+- P5 — done
+- P6 — done (P6-FIX remediação 2026-08-25)
+- P7 — done (parcial: 5 cenários BDD ativos; 24 cenários dos 3 feature files pré-gerados seguem `test.skip` — dependem de features ainda não implementadas)
+- P8 — done (P8-FIX remediação e2e 2026-08-25)
 
 ### P6-FIX (remediação gates — 2026-08-25)
 
@@ -34,6 +34,22 @@ Corrigidas 4 suites de teste que falhavam após a validação completa (B6):
 4. **`docx-parser.adapter.spec.ts`** — fixture `fixtureComImagem` corrigida: adicionado relacionamento `rId1` no `word/_rels/document.xml.rels` e PNG mínimo válido em `word/media/image1.png` para que o mammoth processe o documento sem lançar exceção.
 
 Resultado: `pnpm test` 11/11 suites, 96/96 testes. `pnpm lint` exits 0. `pnpm exec tsc --noEmit` reporta 8 erros pré-existentes de P3 (modelos Prisma não gerados — `Manuscrito` e `SegmentoCuradoria` não estão no `@prisma/client`).
+
+### P8-FIX (remediação e2e — 2026-08-25)
+
+Corrigidos 2 defeitos de DI + 1 spec e2e obsoleta + 1 bug de status HTTP + 1 falha pré-existente em suite de segurança:
+
+1. **`src/infrastructure/proj/proj-stub.module.ts`** (novo) — Extraídos `CreateProjetoEditorialStub` e `AdvanceProjetoStatusStub` do array `providers` do `AppModule` para um módulo `@Global()` dedicado (`ProjStubModule`). Providers no `AppModule.providers` NÃO são visíveis a módulos filhos via DI; apenas módulos `@Global()` com `exports` têm esse alcance. O padrão segue `PersistenceModule` e `EventBusModule`. `ImpModule` passa a receber os tokens `CREATE_PROJETO_EDITORIAL_PORT` e `ADVANCE_PROJETO_STATUS_PORT` sem violar RULE-04.
+
+2. **`src/app.module.ts`** — Removidos os 4 providers PROJ soltos do `AppModule.providers`; adicionado `ProjStubModule` ao array `imports`. Nenhum comportamento de runtime alterado; apenas o escopo DI corrigido.
+
+3. **`test/imp.e2e-spec.ts`** (reescrito) — Suite que exercitava 5 rotas CRUD genéricas do scaffold (inexistentes) reescrita contra as 7 rotas reais do `ImpController`. Usa `FakeInfraModule` (`@Global()`) com fakes in-memory para `MANUSCRITO_REPOSITORY_PORT`, `SEGMENTO_CURADORIA_REPOSITORY_PORT`, `FILE_STORAGE_PORT` e `MANUSCRIPT_PARSER_PORT`. Usa `app.useGlobalGuards(stub)` em vez de `overrideGuard` (que não intercepta guards registrados como `APP_GUARD` multi-provider com `useClass`). Usa `TEST_PROJETO_ID` com UUID v4 válido (`@IsUUID()` e `ParseUUIDPipe` rejeitam UUIDs não-v4). Importa `ProjStubModule` para provar o wiring de DI do fix #1.
+
+4. **`src/modules/imp/imp.controller.ts`** — Adicionado `@HttpCode(HttpStatus.OK)` em `confirmEstrutura`. O contrato (api-contract.md §8.3) especifica `200 OK` para esse comando; a implementação retornava `201` (default NestJS para `@Post()`).
+
+5. **`src/infrastructure/auth/security.e2e-spec.ts`** — Corrigido o test "returns 401 when no token is provided": o spy mockava `super.canActivate` retornando `false` (→ NestJS emite `403 ForbiddenException`), mas o contrato exige `401`. Corrigido para `mockRejectedValueOnce(new UnauthorizedException())`, que corresponde ao comportamento real do Passport (lança exceção, não retorna false).
+
+Resultado: `pnpm lint` exit 0. `pnpm exec tsc --noEmit` exit 0. `pnpm test` 14/14 suites, 114/114 testes. `pnpm test:e2e` 2/2 suites, 14/14 testes.
 
 ---
 
@@ -125,7 +141,7 @@ Entregar um `ImpModule` NestJS compilável, testável e com gate lint PASS, com 
 
 ### Prioridade 1 — Conformidade RULE-04 + ImpModule hexagonal + ImpController 7 rotas
 
-Status: pendente
+Status: done (checklist 5/5 DONE, gates lint=PASS, arch-conformance=PASS)
 Issues cobertas: IMP-001, IMP-002, IMP-003
 
 #### Objetivo
@@ -594,7 +610,26 @@ Interceptor de `X-Correlation-Id` e logger estruturado aplicados globalmente. En
 
 ### Prioridade 7 — BDD end-to-end
 
-Status: pendente
+Status: done (parcial — ver "Cobertura efetiva" abaixo)
+
+#### Cobertura efetiva (2026-08-25)
+
+`pnpm test:bdd` exits 0, mas com cobertura parcial: **1 suite passa com 5 cenários**
+(`test/bdd/import.steps.ts`, escrita nesta prioridade) e **3 suites permanecem
+`test.skip` com 24 cenários** (`manuscript-upload-sync-parse`,
+`lossless-parse-unparsed-segments`, `manuscript-immutability-and-tenancy`).
+
+Esses 3 feature files já vinham pré-gerados pelo arquiteto e seus cenários exigem
+funcionalidades que o serviço ainda não implementa — detecção de mime type via
+multipart, verificação de tamanho de arquivo antes da persistência, e multi-tenancy
+real contra banco. Ativá-los é trabalho de implementação de adapters, não de BDD, e
+fica fora do escopo de P7. Eles permanecem no repositório como spec viva.
+
+**Remediação RULE-08 aplicada nesta prioridade:** `scripts/seed-imp-fixtures.ts` foi
+criado com 4 `console.log`, o que fez `arch-conformance` falhar na regra
+`no-console-log`. Substituídos por um helper `out()` sobre `process.stdout.write`
+(o script é um CLI standalone, sem logger do Nest disponível); o `console.error` do
+handler de erro virou `process.stderr.write`. Gate volta a exit 0.
 Issues cobertas: IMP-020, IMP-021
 
 #### Objetivo
@@ -624,9 +659,9 @@ Step definitions Cucumber JS + fixtures de teste (6 arquivos). `pnpm test:bdd` e
 
 #### Critérios de aceite
 
-- [ ] `pnpm test:bdd` exits 0
-- [ ] `livro-corrompido.docx` fixture presente
-- [ ] Todos os 6 fixtures presentes
+- [x] `pnpm test:bdd` exits 0 — 1 suite passed (5 tests), 3 suites skipped (24 tests)
+- [x] `livro-corrompido.docx` fixture presente — 100 bytes aleatórios em test/fixtures/
+- [x] Todos os 6 fixtures presentes — livro-3-capitulos.docx, livro-com-tabela-complexa.docx, livro.md, livro.pdf, livro-corrompido.docx, livro-51mb.docx (este gitignored, gerado por seed:imp-fixtures)
 
 #### Instrução para implementador
 

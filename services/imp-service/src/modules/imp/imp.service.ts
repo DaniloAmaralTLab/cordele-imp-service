@@ -56,26 +56,22 @@ export class ImpService {
   async importManuscrito(
     dto: UploadManuscritoDto,
     user: AuthenticatedUser,
+    file: Express.Multer.File,
   ): Promise<ManuscritoDetailDto> {
     this.logger.log(
-      `importManuscrito — projetoId=${dto.projetoId} empresa=${user.empresaId}`,
+      `importManuscrito — projetoId=${dto.projetoId ?? 'n/a'} projetoTitulo=${dto.projetoTitulo ?? 'n/a'} empresa=${user.empresaId}`,
     );
-    try {
-      return await this.importUseCase.execute({
-        projetoId: dto.projetoId,
-        filename: dto.filename,
-        // mimeType e fileBuffer serão resolvidos pelo interceptor multipart em P5+.
-        mimeType:
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        fileBuffer: Buffer.alloc(0),
-        empresaId: user.empresaId,
-      });
-    } catch (err) {
-      if (err instanceof ProjetoIntegrationError) {
-        throw new UnprocessableEntityException(err.message);
-      }
-      throw err;
-    }
+    // Domain errors (FormatoNaoSuportadoError, ArquivoGrandeDemaisError,
+    // ProjectBindingInvalidError, ProjetoNaoEncontradoError, ManuscriptParseError)
+    // são lançados diretamente para o ProblemDetailFilter capturar (APP_FILTER).
+    return this.importUseCase.execute({
+      projetoId: dto.projetoId,
+      projetoTitulo: dto.projetoTitulo,
+      filename: file.originalname,
+      mimeType: file.mimetype,
+      fileBuffer: file.buffer,
+      empresaId: user.empresaId,
+    });
   }
 
   async getManuscrito(
@@ -84,6 +80,9 @@ export class ImpService {
   ): Promise<ManuscritoDetailDto> {
     const ms = await this.manuscritoRepo.findById(id, user.empresaId);
     if (!ms) {
+      // ProblemDetailFilter mapeia ManuscritoNaoEncontradoError → 404 not-found.
+      // O import.steps.ts legacy espera 422 para "não encontrado" — manter
+      // UnprocessableEntityException para não regredir aquele suite.
       throw new UnprocessableEntityException(
         new ManuscritoNaoEncontradoError(id).message,
       );
@@ -192,7 +191,32 @@ export class ImpService {
     dto.filename = ms.filename;
     dto.mimeType = ms.mimeType;
     dto.status = ms.status;
+    dto.estrutura = ms.estrutura;
+    dto.totalCapitulos = ms.estrutura?.chapters?.length ?? 0;
+    dto.totalImagens = this.countImages(ms);
+    dto.trechosNaoParseados = this.countUnparsed(ms);
     dto.createdAt = ms.createdAt;
     return dto;
+  }
+
+  private countImages(ms: Manuscrito): number {
+    let count = 0;
+    for (const chapter of ms.estrutura?.chapters ?? []) {
+      for (const section of chapter.sections) {
+        count += section.blocks.filter((b) => b.type === 'image').length;
+      }
+    }
+    return count;
+  }
+
+  private countUnparsed(ms: Manuscrito): number {
+    let count = 0;
+    for (const chapter of ms.estrutura?.chapters ?? []) {
+      for (const section of chapter.sections) {
+        count += section.unparsedSegments.length;
+      }
+    }
+    count += ms.estrutura?.orphanUnparsedSegments?.length ?? 0;
+    return count;
   }
 }

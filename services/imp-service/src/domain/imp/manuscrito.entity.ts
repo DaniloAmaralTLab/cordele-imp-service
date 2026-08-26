@@ -8,6 +8,9 @@ import type { ContentTree } from './content-tree';
  */
 
 export type ManuscritoStatus =
+  | 'imported'
+  | 'parsing'
+  | 'import_failed'
   | 'PENDING_REVIEW'
   | 'REVISAO_ESTRUTURA'
   | 'IGNORADO'
@@ -59,7 +62,8 @@ export class Manuscrito {
   static create(props: Omit<ManuscritoProps, 'createdAt' | 'status'>): Manuscrito {
     return new Manuscrito({
       ...props,
-      status: 'PENDING_REVIEW',
+      // D-B / D-A: parse síncrono → status sempre 'imported' após criação bem-sucedida.
+      status: 'imported',
       createdAt: new Date(),
     });
   }

@@ -11,5 +11,8 @@
   },
   "setupFilesAfterEnv": [],
   "testTimeout": 30000,
-  "maxWorkers": 1
+  "maxWorkers": 1,
+  "transformIgnorePatterns": [
+    "node_modules/(?!(\\.pnpm|remark-parse|unified|bail|trough|is-plain-obj|character-entities|decode-named-character-reference|mdast-util-from-markdown|mdast-util-to-string|micromark|unist-util|vfile))"
+  ]
 }

@@ -1,15 +1,33 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 
-/** Payload de upload de manuscrito (multipart é tratado pelo interceptor; este DTO valida os campos de formulário). */
+/**
+ * Campos de formulário do upload de manuscrito (multipart/form-data — D-C).
+ *
+ * Exatamente um de `projetoId` ou `projetoTitulo` deve ser fornecido:
+ * - projetoId  → vincula ao projeto existente (validado pelo use case via FindProjetoPort)
+ * - projetoTitulo → cria o ProjetoEditorial via PROJ port e vincula o manuscrito
+ *
+ * Ambos ausentes ou ambos presentes → 400 urn:cordele:imp:invalid-project-binding.
+ * Validação da regra de negócio feita no use case (não no DTO, pois envolve lógica condicional).
+ *
+ * O campo `file` (binário) é recebido pelo FileInterceptor e não está neste DTO.
+ */
 export class UploadManuscritoDto {
-  @ApiProperty({ description: 'ID do projeto editorial ao qual o manuscrito pertence' })
+  @ApiPropertyOptional({
+    description: 'ID do projeto editorial existente (mutuamente exclusivo com projetoTitulo)',
+    example: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b22',
+  })
+  @IsOptional()
   @IsUUID()
-  @IsNotEmpty()
-  projetoId!: string;
+  projetoId?: string;
 
-  @ApiProperty({ description: 'Nome original do arquivo', example: 'capitulos-finais.docx' })
+  @ApiPropertyOptional({
+    description: 'Título do projeto a criar em uma ação (mutuamente exclusivo com projetoId)',
+    example: 'Meu Novo Livro',
+  })
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  filename!: string;
+  projetoTitulo?: string;
 }
