@@ -1,6 +1,6 @@
 # Modelo de Dados -- Índice
 
-DDL canônico do Cordelê (Postgres 15+).
+DDL canônico do Cordelê (PostgreSQL 16+).
 
 ## Fonte de verdade
 
