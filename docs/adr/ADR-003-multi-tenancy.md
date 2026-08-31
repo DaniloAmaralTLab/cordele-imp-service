@@ -51,9 +51,21 @@ migrated) and requires runtime schema targeting on top of Prisma's single-schema
 shared platform mechanism to be built in the scaffold/infra phase. Connection and migration
 fan-out grow with tenant count; acceptable for the POC and near-term.
 
+## Resolution — Prisma tenant-targeting mechanism (D-619)
+
+The negative trade-off above ("requires runtime schema targeting on top of Prisma's
+single-schema assumption") is resolved: **a dynamic `PrismaClient` per tenant**, instantiated
+on demand with a `datasourceUrl` pointing at `emp_<slug>` resolved from `EmpresaContext`, held
+in a registry with LRU eviction. Prisma's `multiSchema` preview feature (`@@schema()` per model)
+was rejected: it requires every tenant schema declared statically in `schema.prisma`, which
+would force a `prisma generate` + redeploy on every new tenant onboarded — incompatible with the
+runtime provisioning flow in point 4 above (Saga onboarding creates `emp_<slug>` on demand). See
+`D-619` in the control-plane consolidation doc for full rationale.
+
 ## References
 
 - `ADR-002-modular-monolith.md` — the shared runtime that makes isolation a data-layer concern.
 - `project-context.json` → `multiTenancy` (mode `multi-empresa`, `globalSchema cordele_global`,
   `contextPropagation.rule RULE-07`).
 - BA `ADR-005-poc-single-tenant` — superseded as the persistent tenancy model by this record.
+- `D-619` (control-plane consolidation doc) — resolves the Prisma tenant-targeting mechanism.
