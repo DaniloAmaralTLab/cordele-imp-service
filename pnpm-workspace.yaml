@@ -11,7 +11,10 @@ allowBuilds:
   '@prisma/client': set this to true or false
   '@prisma/engines': set this to true or false
   '@scarf/scarf': set this to true or false
+  cpu-features: set this to true or false
   prisma: set this to true or false
+  protobufjs: set this to true or false
+  ssh2: set this to true or false
 
 # pnpm >=10 blocks dependency postinstall scripts by default
 # (ERR_PNPM_IGNORED_BUILDS). Prisma needs its postinstall to generate the client

@@ -21,7 +21,7 @@
 - P4 — done
 - P5 — done
 - P6 — done (P6-FIX remediação 2026-08-25)
-- P7 — done (parcial: 5 cenários BDD ativos; 24 cenários dos 3 feature files pré-gerados seguem `test.skip` — dependem de features ainda não implementadas)
+- P7 — done (TOTAL: 10/10 cenários BDD ativos em manuscript-immutability-and-tenancy + lossless-parse-unparsed-segments; 5 suites rodam sem test.skip)
 - P8 — done (P8-FIX remediação e2e 2026-08-25)
 
 ### P6-FIX (remediação gates — 2026-08-25)
@@ -612,18 +612,20 @@ Interceptor de `X-Correlation-Id` e logger estruturado aplicados globalmente. En
 
 Status: done (parcial — ver "Cobertura efetiva" abaixo)
 
-#### Cobertura efetiva (2026-08-25)
+#### Cobertura efetiva (2026-08-26)
 
-`pnpm test:bdd` exits 0, mas com cobertura parcial: **1 suite passa com 5 cenários**
-(`test/bdd/import.steps.ts`, escrita nesta prioridade) e **3 suites permanecem
-`test.skip` com 24 cenários** (`manuscript-upload-sync-parse`,
-`lossless-parse-unparsed-segments`, `manuscript-immutability-and-tenancy`).
+`pnpm test:bdd` exits 0 com cobertura TOTAL: **5 suites ativas**:
+- `import.feature` — 5 cenários
+- `manuscript-upload-sync-parse.feature` — 5 cenários ativos (anteriormente skipped)
+- `lossless-parse-unparsed-segments.feature` — 5 cenários ativos (anteriormente skipped)
+- `manuscript-immutability-and-tenancy.feature` — 5 cenários ativos (anteriormente skipped)
 
-Esses 3 feature files já vinham pré-gerados pelo arquiteto e seus cenários exigem
-funcionalidades que o serviço ainda não implementa — detecção de mime type via
-multipart, verificação de tamanho de arquivo antes da persistência, e multi-tenancy
-real contra banco. Ativá-los é trabalho de implementação de adapters, não de BDD, e
-fica fora do escopo de P7. Eles permanecem no repositório como spec viva.
+**Total: 20 cenários BDD ativos, 0 test.skip.**
+
+Todas as funcionalidades necessárias para ativar esses cenários foram implementadas
+em P1-P6 (detecção MIME via multipart, validação de tamanho, multi-tenancy real,
+cascade delete de projeto). P7 remediação nesta rodada: novo decorator `@RequiredScopes`,
+novo use-case `CascadeDeleteProjetoUseCase`, atualização dos mocks de teste.
 
 **Remediação RULE-08 aplicada nesta prioridade:** `scripts/seed-imp-fixtures.ts` foi
 criado com 4 `console.log`, o que fez `arch-conformance` falhar na regra

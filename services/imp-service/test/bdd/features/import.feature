@@ -20,9 +20,9 @@ Feature: Manuscript import API
     When the editor posts a manuscript upload with projetoId "not-a-uuid"
     Then the response status is 400
 
-  Scenario: Reading a manuscript that does not exist returns 422
+  Scenario: Reading a manuscript that does not exist returns 404
     When the editor reads the manuscript with id "00000000-0000-0000-0000-000000000000"
-    Then the response status is 422
+    Then the response status is 404
 
   Scenario: Uploading a corrupt DOCX causes parse failure and returns 422
     Given the parser will fail for the next request

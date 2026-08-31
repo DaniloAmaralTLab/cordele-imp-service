@@ -49,6 +49,7 @@ describe('ConfirmEstruturaUseCase', () => {
       save: jest.fn(),
       findById: jest.fn(),
       findByProjetoId: jest.fn(),
+      deleteByProjetoId: jest.fn(),
     };
     advanceProjeto = {
       advance: jest.fn(),
