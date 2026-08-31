@@ -206,6 +206,12 @@ const fakeManuscritoRepo: ManuscritoRepositoryPort = {
   findById: async (id: string, _empresaId: string) => manuscritoStore.get(id) ?? null,
   findByProjetoId: async (projetoId: string, _empresaId: string) =>
     [...manuscritoStore.values()].filter((m) => m.projetoId === projetoId),
+  deleteByProjetoId: async (projetoId: string, _empresaId: string) => {
+    const keysToDelete = [...manuscritoStore.entries()]
+      .filter(([_, ms]) => ms.projetoId === projetoId)
+      .map(([key]) => key);
+    keysToDelete.forEach((key) => manuscritoStore.delete(key));
+  },
 };
 
 const fakeSegmentoCuradoriaRepo: SegmentoCuradoriaRepositoryPort = {

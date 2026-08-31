@@ -80,6 +80,7 @@ describe('ImportManuscriptUseCase', () => {
       save: jest.fn(),
       findById: jest.fn(),
       findByProjetoId: jest.fn(),
+      deleteByProjetoId: jest.fn(),
     };
     createProjeto = {
       create: jest.fn(),

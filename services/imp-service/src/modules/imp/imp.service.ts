@@ -2,6 +2,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 
@@ -80,12 +81,10 @@ export class ImpService {
   ): Promise<ManuscritoDetailDto> {
     const ms = await this.manuscritoRepo.findById(id, user.empresaId);
     if (!ms) {
-      // ProblemDetailFilter mapeia ManuscritoNaoEncontradoError → 404 not-found.
-      // O import.steps.ts legacy espera 422 para "não encontrado" — manter
-      // UnprocessableEntityException para não regredir aquele suite.
-      throw new UnprocessableEntityException(
-        new ManuscritoNaoEncontradoError(id).message,
-      );
+      // 404 Not Found — manuscript does not exist within the active empresa
+      // (cross-empresa access is indistinguishable from absent without cross-schema lookup,
+      // but 404 is the correct REST response in both cases: SPEC-06 / tenancy BDD).
+      throw new NotFoundException(new ManuscritoNaoEncontradoError(id).message);
     }
     return this.toDetailDto(ms);
   }
@@ -96,9 +95,7 @@ export class ImpService {
   ): Promise<EstruturaDto> {
     const ms = await this.manuscritoRepo.findById(id, user.empresaId);
     if (!ms) {
-      throw new UnprocessableEntityException(
-        new ManuscritoNaoEncontradoError(id).message,
-      );
+      throw new NotFoundException(new ManuscritoNaoEncontradoError(id).message);
     }
     const dto = new EstruturaDto();
     dto.manuscritoId = ms.id;
@@ -114,7 +111,11 @@ export class ImpService {
       projetoId,
       user.empresaId,
     );
-    return list.map((ms) => this.toDetailDto(ms));
+    // Sort by createdAt descending — newest manuscript first (SPEC-04 / ADR-002)
+    const sorted = [...list].sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+    );
+    return sorted.map((ms) => this.toDetailDto(ms));
   }
 
   async ignoreSegmento(

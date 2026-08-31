@@ -102,6 +102,7 @@ function mapMessageToUnparsed(
     reason,
     rawContent: rawContent ?? message,
     order: 0,
+    sourceLocation: { kind: 'docx' as const },
   };
 }
 
@@ -206,6 +207,7 @@ function parseHtmlToContentTree(
               reason: 'complex_table',
               rawContent: '<table>...</table>',
               order: state.blockOrder++,
+              sourceLocation: { kind: 'docx' as const },
             });
           }
           break;

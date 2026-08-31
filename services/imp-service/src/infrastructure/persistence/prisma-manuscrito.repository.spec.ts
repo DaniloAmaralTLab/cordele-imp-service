@@ -116,4 +116,43 @@ describe('PrismaManuscritoRepository (integration)', () => {
       expect(result.length).toBeGreaterThanOrEqual(2);
     });
   });
+
+  describe('deleteByProjetoId()', () => {
+    it('deve remover todos os manuscritos do projeto dentro da empresa', async () => {
+      const projetoId = crypto.randomUUID();
+      const m1 = buildManuscrito({ projetoId });
+      const m2 = buildManuscrito({ projetoId });
+
+      await repo.save(m1, 'aetos');
+      await repo.save(m2, 'aetos');
+
+      // Verify they exist before deletion.
+      const before = await repo.findByProjetoId(projetoId, 'aetos');
+      expect(before.length).toBeGreaterThanOrEqual(2);
+
+      // Delete cascade.
+      await repo.deleteByProjetoId(projetoId, 'aetos');
+
+      // Verify they are gone.
+      const after = await repo.findByProjetoId(projetoId, 'aetos');
+      expect(after).toEqual([]);
+    });
+
+    it('não deve remover manuscritos de outro projeto', async () => {
+      const projetoIdA = crypto.randomUUID();
+      const projetoIdB = crypto.randomUUID();
+      const mA = buildManuscrito({ projetoId: projetoIdA });
+      const mB = buildManuscrito({ projetoId: projetoIdB });
+
+      await repo.save(mA, 'aetos');
+      await repo.save(mB, 'aetos');
+
+      await repo.deleteByProjetoId(projetoIdA, 'aetos');
+
+      // mB must still be there.
+      const remaining = await repo.findByProjetoId(projetoIdB, 'aetos');
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0].id).toBe(mB.id);
+    });
+  });
 });

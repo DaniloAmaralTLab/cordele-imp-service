@@ -50,6 +50,7 @@ describe('IgnoreSegmentUseCase', () => {
       save: jest.fn(),
       findById: jest.fn(),
       findByProjetoId: jest.fn(),
+      deleteByProjetoId: jest.fn(),
     };
     segmentoCuradoriaRepo = {
       save: jest.fn(),

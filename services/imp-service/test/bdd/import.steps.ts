@@ -109,6 +109,13 @@ const fakeManuscritoRepo: ManuscritoRepositoryPort = {
   findById: async (id: string, _empresaId: string) => manuscritoStore.get(id) ?? null,
   findByProjetoId: async (projetoId: string, _empresaId: string) =>
     [...manuscritoStore.values()].filter((m) => m.projetoId === projetoId),
+  deleteByProjetoId: async (projetoId: string, _empresaId: string) => {
+    for (const [id, ms] of manuscritoStore.entries()) {
+      if (ms.projetoId === projetoId) {
+        manuscritoStore.delete(id);
+      }
+    }
+  },
 };
 
 const fakeSegmentoCuradoriaRepo: SegmentoCuradoriaRepositoryPort = {
@@ -280,9 +287,9 @@ defineFeature(feature, (test) => {
     });
   });
 
-  // ── Scenario 4: manuscript not found → 422 ──────────────────────────────────
+  // ── Scenario 4: manuscript not found → 404 ──────────────────────────────────
 
-  test('Reading a manuscript that does not exist returns 422', ({ given, when, then }) => {
+  test('Reading a manuscript that does not exist returns 404', ({ given, when, then }) => {
     given('an authenticated editor with empresa "aetos" and scope "imp:write"', () => {
       // Auth provided by stub.
     });
@@ -295,8 +302,8 @@ defineFeature(feature, (test) => {
       },
     );
 
-    then('the response status is 422', () => {
-      expect(response.status).toBe(422);
+    then('the response status is 404', () => {
+      expect(response.status).toBe(404);
     });
   });
 

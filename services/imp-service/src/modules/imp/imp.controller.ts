@@ -25,6 +25,7 @@ import {
 
 import type { AuthenticatedUser } from '../../domain/auth/authenticated-user';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { RequiredScopes } from './decorators/require-scope.decorator';
 import { EstruturaDto } from './dto/estrutura.dto';
 import { IgnoreSegmentoDto } from './dto/ignore-segmento.dto';
 import { ManuscritoDetailDto } from './dto/manuscrito-detail.dto';
@@ -68,8 +69,10 @@ export class ImpController {
   /**
    * GET /api/imp/manuscripts/:id
    * Detalhe de um manuscrito pelo id.
+   * Requer scope `imp:read` (enforced by JwtAuthGuard via @RequiredScopes metadata).
    */
   @Get('manuscripts/:id')
+  @RequiredScopes('imp:read')
   @ApiOperation({ summary: 'Obter detalhe de um manuscrito' })
   @ApiOkResponse({ type: ManuscritoDetailDto, description: 'Detalhe do manuscrito.' })
   getManuscrito(
@@ -82,8 +85,10 @@ export class ImpController {
   /**
    * GET /api/imp/manuscripts/:id/estrutura
    * Estrutura (ContentTree) de um manuscrito.
+   * Requer scope `imp:read` (enforced by JwtAuthGuard via @RequiredScopes metadata).
    */
   @Get('manuscripts/:id/estrutura')
+  @RequiredScopes('imp:read')
   @ApiOperation({ summary: 'Obter estrutura canônica do manuscrito' })
   @ApiOkResponse({ type: EstruturaDto, description: 'ContentTree do manuscrito.' })
   getEstrutura(

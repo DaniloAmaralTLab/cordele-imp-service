@@ -27,8 +27,10 @@
 - **Unparsed-segment taxonomy undefined.** What counts as "unparsed" (tables, equations, nested
   footnotes, unknown styles) and how `reason`/`sourceLocation` are represented needs a concrete
   contract.
-- **Tenant provisioning / per-schema migration** is a shared platform mechanism (Prisma vs
-  schema-per-tenant) not yet designed; noted for scaffold/infra.
+- ~~**Tenant provisioning / per-schema migration** is a shared platform mechanism (Prisma vs
+  schema-per-tenant) not yet designed; noted for scaffold/infra.~~ **Resolved (D-619):** dynamic
+  `PrismaClient` per tenant, `datasourceUrl` resolved from `EmpresaContext`, LRU-evicted registry.
+  See `ADR-003-multi-tenancy.md` § Resolution.
 - **Deletion & LGPD erasure** across PROJ → IMP (cascade of binaries and rows) is unspecified.
 - **Parse limits** (max chapters, max image size/count) not yet quantified.
 - **Idempotency of upload** (same file re-submitted) — currently "new manuscript each time"; whether

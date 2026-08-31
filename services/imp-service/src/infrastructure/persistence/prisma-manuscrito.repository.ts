@@ -75,4 +75,22 @@ export class PrismaManuscritoRepository implements ManuscritoRepositoryPort {
 
     return rows.map((row) => ManuscritoMapper.toDomain(row, empresaId));
   }
+
+  /**
+   * Remove todos os manuscritos de um projeto dentro da empresa (cascade delete).
+   *
+   * Chamado APÓS purgar os binários via FileStoragePort (de responsabilidade do use case).
+   * Usa `deleteMany` — seguro pois o schema-per-tenant garante isolamento.
+   */
+  async deleteByProjetoId(projetoId: string, empresaId: string): Promise<void> {
+    this.logger.log(
+      `Deleting all manuscripts for projetoId=${projetoId} empresa=${empresaId}`,
+    );
+    await this.tenantFactory.withTenant(empresaId, async (tx) => {
+      await tx.manuscrito.deleteMany({ where: { projetoId } });
+    });
+    this.logger.log(
+      `All manuscripts for projetoId=${projetoId} deleted successfully`,
+    );
+  }
 }

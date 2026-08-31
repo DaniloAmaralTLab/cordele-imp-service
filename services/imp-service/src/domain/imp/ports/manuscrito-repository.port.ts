@@ -24,6 +24,13 @@ export interface ManuscritoRepositoryPort {
    * Lista manuscritos de um projeto dentro da empresa.
    */
   findByProjetoId(projetoId: string, empresaId: string): Promise<Manuscrito[]>;
+
+  /**
+   * Remove todos os manuscritos de um projeto dentro da empresa (cascade delete).
+   * Usado pelo handler do evento ProjetoDeleted — chamado APÓS purgar os binários
+   * via FileStoragePort.
+   */
+  deleteByProjetoId(projetoId: string, empresaId: string): Promise<void>;
 }
 
 /** Token de DI para o repositório de Manuscrito. */

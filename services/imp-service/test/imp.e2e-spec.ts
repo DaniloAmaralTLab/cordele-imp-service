@@ -113,6 +113,12 @@ const fakeManuscritoRepo: ManuscritoRepositoryPort = {
     manuscritoStore.get(id) ?? null,
   findByProjetoId: async (projetoId: string, _empresaId: string) =>
     [...manuscritoStore.values()].filter((m) => m.projetoId === projetoId),
+  deleteByProjetoId: async (projetoId: string, _empresaId: string) => {
+    const keysToDelete = [...manuscritoStore.entries()]
+      .filter(([_, ms]) => ms.projetoId === projetoId)
+      .map(([key]) => key);
+    keysToDelete.forEach((key) => manuscritoStore.delete(key));
+  },
 };
 
 const segmentoCuradoriaStore = new Map<string, SegmentoCuradoria>();
@@ -277,10 +283,17 @@ describe('IMP — HTTP surface (e2e)', () => {
     expect(res.body.filename).toBe('capitulo-01.docx');
   });
 
-  it('GET /manuscripts/:id — retorna 422 para ID inexistente', async () => {
+  /**
+   * Contrato P7 (cross-empresa / not-found): UUID válido porém ausente no schema
+   * da empresa ativa retorna 404 Not Found — nunca 422.
+   * 422 é reservado para IDs com formato inválido (não-UUID), rejeitados pelo ParseUUIDPipe.
+   * Mudança de contrato documentada em P7 (BDD: "A 404 is returned when reading
+   * another empresa's manuscript").
+   */
+  it('GET /manuscripts/:id — retorna 404 para UUID válido inexistente (P7)', async () => {
     await request(app.getHttpServer())
       .get('/api/v1/imp/manuscripts/00000000-0000-0000-0000-000000000000')
-      .expect(422);
+      .expect(404);
   });
 
   it('GET /manuscripts/:id/estrutura — retorna ContentTree do manuscrito → 200', async () => {
