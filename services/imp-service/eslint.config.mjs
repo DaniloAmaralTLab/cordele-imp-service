@@ -19,6 +19,7 @@ export default [
       'coverage/**',
       'coverage-e2e/**',
       'prisma/migrations/**',
+      'src/infrastructure/prisma-client/**',
       'eslint.config.mjs',
     ],
   },
