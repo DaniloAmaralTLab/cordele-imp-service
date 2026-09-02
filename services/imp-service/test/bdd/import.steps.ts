@@ -128,6 +128,15 @@ const fakeSegmentoCuradoriaRepo: SegmentoCuradoriaRepositoryPort = {
     segmentoId: string,
     _empresaId: string,
   ) => segmentoCuradoriaStore.get(`${manuscritoId}:${segmentoId}`) ?? null,
+  findAllByManuscrito: async (manuscritoId: string, _empresaId: string) =>
+    [...segmentoCuradoriaStore.values()].filter((s) => s.manuscritoId === manuscritoId),
+  deleteByManuscritoAndSegmento: async (
+    manuscritoId: string,
+    segmentoId: string,
+    _empresaId: string,
+  ) => {
+    segmentoCuradoriaStore.delete(`${manuscritoId}:${segmentoId}`);
+  },
 };
 
 // ── Fake FindProjetoPort — accepts any projetoId (stub behavior) ──────────────

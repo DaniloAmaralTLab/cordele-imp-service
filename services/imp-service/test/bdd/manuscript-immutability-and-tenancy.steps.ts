@@ -155,6 +155,8 @@ const imutFakeManuscritoRepo: ManuscritoRepositoryPort = {
 const imutFakeSegmentoCuradoriaRepo: SegmentoCuradoriaRepositoryPort = {
   save: async (seg: SegmentoCuradoria, _empresaId: string) => seg,
   findByManuscritoAndSegmento: async () => null,
+  findAllByManuscrito: async () => [],
+  deleteByManuscritoAndSegmento: async () => undefined,
 };
 
 // ── Fake FindProjetoPort ──────────────────────────────────────────────────────

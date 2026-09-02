@@ -84,4 +84,38 @@ export class PrismaSegmentoCuradoriaRepository
     if (!row) return null;
     return SegmentoCuradoriaMapper.toDomain(row);
   }
+
+  /**
+   * Lista todos os segmentos atualmente IGNORADOS de um manuscrito.
+   */
+  async findAllByManuscrito(
+    manuscritoId: string,
+    empresaId: string,
+  ): Promise<SegmentoCuradoria[]> {
+    const rows = await this.tenantFactory.withTenant(empresaId, async (tx) => {
+      return tx.segmentoCuradoria.findMany({ where: { manuscritoId } });
+    });
+
+    return rows.map((row) => SegmentoCuradoriaMapper.toDomain(row));
+  }
+
+  /**
+   * Remove o registro de curadoria de um segmento (restaura para ATIVO).
+   * `deleteMany` em vez de `delete` — idempotente, não lança se o registro não existir.
+   */
+  async deleteByManuscritoAndSegmento(
+    manuscritoId: string,
+    segmentoId: string,
+    empresaId: string,
+  ): Promise<void> {
+    await this.tenantFactory.withTenant(empresaId, async (tx) => {
+      return tx.segmentoCuradoria.deleteMany({
+        where: { manuscritoId, segmentoId },
+      });
+    });
+
+    this.logger.log(
+      `SegmentoCuradoria removida (restore): manuscrito=${manuscritoId} segmento=${segmentoId}`,
+    );
+  }
 }

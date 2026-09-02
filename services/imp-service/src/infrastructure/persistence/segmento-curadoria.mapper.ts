@@ -1,4 +1,4 @@
-import type { SegmentoCuradoria as PrismaSegmentoCuradoria } from '@prisma/client';
+import type { SegmentoCuradoria as PrismaSegmentoCuradoria } from '../prisma-client';
 
 import type { SegmentoCuradoriaStatus } from '../../domain/imp/segmento-curadoria.entity';
 import { SegmentoCuradoria } from '../../domain/imp/segmento-curadoria.entity';
@@ -60,10 +60,10 @@ export class SegmentoCuradoriaMapper {
   // --- Helpers de mapeamento ---
 
   private static statusToAcao(status: SegmentoCuradoriaStatus): string {
-    // MVP: só 'IGNORADO' → 'ignorado' está na constraint do DB.
+    // Constraint do DB (chk_segmento_curadoria_acao) só admite 'ignorado'.
+    // ATIVO não tem representação em `acao` — é modelado pela AUSÊNCIA do registro
+    // (ver IgnoreSegmentUseCase.restore(), que usa DELETE em vez de save()).
     if (status === 'IGNORADO') return 'ignorado';
-    // ATIVO não tem representação DB ainda; fallback para 'ignorado' (inválido mas
-    // nunca persistido em MVP — SegmentoCuradoria.restore() não chama save()).
     return 'ignorado';
   }
 

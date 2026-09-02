@@ -17,6 +17,7 @@ import type { ManuscritoRepositoryPort } from '../../domain/imp/ports/manuscrito
 import { MANUSCRITO_REPOSITORY_PORT } from '../../domain/imp/ports/manuscrito-repository.port';
 import { EstruturaDto } from './dto/estrutura.dto';
 import type { IgnoreSegmentoDto } from './dto/ignore-segmento.dto';
+import { IgnoredSegmentsDto } from './dto/ignored-segments.dto';
 import { ManuscritoDetailDto } from './dto/manuscrito-detail.dto';
 import type { UploadManuscritoDto } from './dto/upload-manuscrito.dto';
 import {
@@ -159,6 +160,27 @@ export class ImpService {
         err instanceof ManuscritoNaoEncontradoError
       ) {
         throw new UnprocessableEntityException(err.message);
+      }
+      throw err;
+    }
+  }
+
+  async listSegmentosIgnorados(
+    manuscritoId: string,
+    user: AuthenticatedUser,
+  ): Promise<IgnoredSegmentsDto> {
+    try {
+      const ignoredSegmentoIds = await this.ignoreSegmentUseCase.listIgnorados(
+        manuscritoId,
+        user.empresaId,
+      );
+      const dto = new IgnoredSegmentsDto();
+      dto.manuscritoId = manuscritoId;
+      dto.ignoredSegmentoIds = ignoredSegmentoIds;
+      return dto;
+    } catch (err) {
+      if (err instanceof ManuscritoNaoEncontradoError) {
+        throw new NotFoundException(err.message);
       }
       throw err;
     }

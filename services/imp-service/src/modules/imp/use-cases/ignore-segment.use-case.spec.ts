@@ -55,6 +55,8 @@ describe('IgnoreSegmentUseCase', () => {
     segmentoCuradoriaRepo = {
       save: jest.fn(),
       findByManuscritoAndSegmento: jest.fn(),
+      findAllByManuscrito: jest.fn(),
+      deleteByManuscritoAndSegmento: jest.fn(),
     };
     useCase = new IgnoreSegmentUseCase(manuscritoRepo, segmentoCuradoriaRepo);
   });
@@ -119,17 +121,19 @@ describe('IgnoreSegmentUseCase', () => {
   });
 
   describe('restore — happy path', () => {
-    it('should save SegmentoCuradoria ATIVO when restoring', async () => {
+    it('should delete the SegmentoCuradoria record when restoring', async () => {
       const ms = makeManuscrito();
       manuscritoRepo.findById.mockResolvedValue(ms);
-      segmentoCuradoriaRepo.save.mockImplementation(async (s) => s);
+      segmentoCuradoriaRepo.deleteByManuscritoAndSegmento.mockResolvedValue(undefined);
 
       await useCase.restore({ manuscritoId: 'ms-001', segmentoId: 'blk1', empresaId: 'aetos' });
 
-      expect(segmentoCuradoriaRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ status: 'ATIVO', segmentoId: 'blk1' }),
+      expect(segmentoCuradoriaRepo.deleteByManuscritoAndSegmento).toHaveBeenCalledWith(
+        'ms-001',
+        'blk1',
         'aetos',
       );
+      expect(segmentoCuradoriaRepo.save).not.toHaveBeenCalled();
     });
   });
 
@@ -154,10 +158,33 @@ describe('IgnoreSegmentUseCase', () => {
       };
       const ms = makeManuscrito(treeWithUnparsed);
       manuscritoRepo.findById.mockResolvedValue(ms);
-      segmentoCuradoriaRepo.save.mockImplementation(async (s) => s);
+      segmentoCuradoriaRepo.deleteByManuscritoAndSegmento.mockResolvedValue(undefined);
 
       await useCase.restore({ manuscritoId: 'ms-001', segmentoId: 'orp1', empresaId: 'aetos' });
-      expect(segmentoCuradoriaRepo.save).toHaveBeenCalled();
+      expect(segmentoCuradoriaRepo.deleteByManuscritoAndSegmento).toHaveBeenCalled();
+    });
+  });
+
+  describe('listIgnorados', () => {
+    it('should return segmentoIds of currently ignored segments', async () => {
+      const ms = makeManuscrito();
+      manuscritoRepo.findById.mockResolvedValue(ms);
+      segmentoCuradoriaRepo.findAllByManuscrito.mockResolvedValue([
+        SegmentoCuradoria.ignore('ms-001', 'blk1'),
+      ]);
+
+      const result = await useCase.listIgnorados('ms-001', 'aetos');
+
+      expect(result).toEqual(['blk1']);
+      expect(segmentoCuradoriaRepo.findAllByManuscrito).toHaveBeenCalledWith('ms-001', 'aetos');
+    });
+
+    it('should throw ManuscritoNaoEncontradoError when manuscrito não existe', async () => {
+      manuscritoRepo.findById.mockResolvedValue(null);
+
+      await expect(useCase.listIgnorados('ms-999', 'aetos')).rejects.toThrow(
+        ManuscritoNaoEncontradoError,
+      );
     });
   });
 });

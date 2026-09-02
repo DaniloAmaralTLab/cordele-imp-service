@@ -28,6 +28,7 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { RequiredScopes } from './decorators/require-scope.decorator';
 import { EstruturaDto } from './dto/estrutura.dto';
 import { IgnoreSegmentoDto } from './dto/ignore-segmento.dto';
+import { IgnoredSegmentsDto } from './dto/ignored-segments.dto';
 import { ManuscritoDetailDto } from './dto/manuscrito-detail.dto';
 import { UploadManuscritoDto } from './dto/upload-manuscrito.dto';
 import { ImpService } from './imp.service';
@@ -142,6 +143,22 @@ export class ImpController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<void> {
     return this.impService.restoreSegmento(id, segId, user);
+  }
+
+  /**
+   * GET /api/imp/manuscripts/:id/segmentos/ignored
+   * Lista os ids dos segmentos atualmente ignorados de um manuscrito (T04 hydration).
+   * Requer scope `imp:read` (enforced by JwtAuthGuard via @RequiredScopes metadata).
+   */
+  @Get('manuscripts/:id/segmentos/ignored')
+  @RequiredScopes('imp:read')
+  @ApiOperation({ summary: 'Listar segmentos ignorados do manuscrito' })
+  @ApiOkResponse({ type: IgnoredSegmentsDto, description: 'IDs dos segmentos ignorados.' })
+  listSegmentosIgnorados(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<IgnoredSegmentsDto> {
+    return this.impService.listSegmentosIgnorados(id, user);
   }
 
   /**

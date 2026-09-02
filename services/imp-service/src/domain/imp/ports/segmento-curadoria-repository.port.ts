@@ -23,6 +23,25 @@ export interface SegmentoCuradoriaRepositoryPort {
     segmentoId: string,
     empresaId: string,
   ): Promise<SegmentoCuradoria | null>;
+
+  /**
+   * Lista todos os segmentos atualmente IGNORADOS de um manuscrito.
+   * Presença de registro == ignorado (acao só admite 'ignorado' na constraint do DB).
+   */
+  findAllByManuscrito(
+    manuscritoId: string,
+    empresaId: string,
+  ): Promise<SegmentoCuradoria[]>;
+
+  /**
+   * Remove o registro de curadoria de um segmento (restaura para ATIVO).
+   * Idempotente: remover um segmento sem registro não lança erro.
+   */
+  deleteByManuscritoAndSegmento(
+    manuscritoId: string,
+    segmentoId: string,
+    empresaId: string,
+  ): Promise<void>;
 }
 
 /** Token de DI para SegmentoCuradoriaRepositoryPort. */

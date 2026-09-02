@@ -286,6 +286,8 @@ const losslessFakeManuscritoRepo: ManuscritoRepositoryPort = {
 const losslessFakeSegmentoCuradoriaRepo: SegmentoCuradoriaRepositoryPort = {
   save: async (seg: SegmentoCuradoria, _empresaId: string) => seg,
   findByManuscritoAndSegmento: async () => null,
+  findAllByManuscrito: async () => [],
+  deleteByManuscritoAndSegmento: async () => undefined,
 };
 
 // ── Fake FindProjetoPort ──────────────────────────────────────────────────────

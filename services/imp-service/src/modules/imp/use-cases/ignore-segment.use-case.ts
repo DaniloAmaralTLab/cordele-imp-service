@@ -75,6 +75,12 @@ export class IgnoreSegmentUseCase {
   /**
    * Restaura um segmento para status ATIVO (desfaz ignore).
    * Idempotente: restaurar um segmento já ATIVO não lança exceção.
+   *
+   * A tabela `segmento_curadoria` só admite `acao='ignorado'` (CHECK constraint —
+   * ver migration `20260824160028_init`); ATIVO é representado pela AUSÊNCIA do
+   * registro, não por um valor de `acao`. Restaurar remove o registro em vez de
+   * fazer upsert (upsert com status ATIVO seria silenciosamente coagido de volta
+   * para 'ignorado' pelo mapper, deixando o segmento marcado como ignorado para sempre).
    */
   async restore(command: RestoreSegmentCommand): Promise<void> {
     const { manuscritoId, segmentoId, empresaId } = command;
@@ -88,11 +94,33 @@ export class IgnoreSegmentUseCase {
       throw new SegmentoNaoEncontradoError(segmentoId, manuscritoId);
     }
 
-    const curadoria = SegmentoCuradoria.restore(manuscritoId, segmentoId);
-    await this.segmentoCuradoriaRepo.save(curadoria, empresaId);
+    await this.segmentoCuradoriaRepo.deleteByManuscritoAndSegmento(
+      manuscritoId,
+      segmentoId,
+      empresaId,
+    );
 
     this.logger.log(
       `Segmento '${segmentoId}' restaurado no manuscrito '${manuscritoId}' — empresa=${empresaId}`,
     );
+  }
+
+  /**
+   * Lista os ids dos segmentos atualmente IGNORADOS de um manuscrito.
+   */
+  async listIgnorados(
+    manuscritoId: string,
+    empresaId: string,
+  ): Promise<string[]> {
+    const manuscrito = await this.manuscritoRepo.findById(manuscritoId, empresaId);
+    if (!manuscrito) {
+      throw new ManuscritoNaoEncontradoError(manuscritoId);
+    }
+
+    const registros = await this.segmentoCuradoriaRepo.findAllByManuscrito(
+      manuscritoId,
+      empresaId,
+    );
+    return registros.map((r) => r.segmentoId);
   }
 }
