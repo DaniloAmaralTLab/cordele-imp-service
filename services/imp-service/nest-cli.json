@@ -15,7 +15,8 @@
     "assets": [
       { "include": "**/*.sql", "outDir": "dist" },
       { "include": "**/*.yml", "outDir": "dist" },
-      { "include": "**/*.json", "exclude": "**/tsconfig*.json", "outDir": "dist" }
+      { "include": "**/*.json", "exclude": "**/tsconfig*.json", "outDir": "dist" },
+      { "include": "infrastructure/prisma-client/**/*", "outDir": "dist" }
     ],
     "plugins": [
       {

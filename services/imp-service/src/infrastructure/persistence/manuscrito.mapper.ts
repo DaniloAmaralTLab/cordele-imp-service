@@ -1,5 +1,5 @@
-import type { Manuscrito as PrismaManuscrito } from '@prisma/client';
-import { Prisma } from '@prisma/client';
+import type { Manuscrito as PrismaManuscrito } from '../prisma-client';
+import { Prisma } from '../prisma-client';
 
 import type { ContentTree } from '../../domain/imp/content-tree';
 import type { ManuscritoMimeType, ManuscritoStatus } from '../../domain/imp/manuscrito.entity';
