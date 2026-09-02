@@ -1,7 +1,7 @@
 {
   "issue": "IMP-001",
-  "layer": "fe",
-  "computedAt": "2026-08-31T18:40:26",
+  "layer": "be",
+  "computedAt": "2026-09-02T10:53:34",
   "checklist": {
     "total": 5,
     "done": 5,
@@ -37,22 +37,22 @@
     ]
   },
   "gates": {
-    "build": "pass",
-    "lint": "pass",
-    "test": "fail",
+    "build": "unknown",
+    "lint": "unknown",
+    "test": "unknown",
     "e2e": "unknown"
   },
   "score": {
-    "total": 60,
+    "total": 30,
     "provisional": true,
     "range": [
-      60,
-      70
+      30,
+      40
     ],
     "breakdown": {
       "structure": {
         "max": 30,
-        "value": 30,
+        "value": 0,
         "basis": "deterministic"
       },
       "functionality": {
@@ -78,7 +78,7 @@
         "needsAgentConfirm": true
       }
     },
-    "band": "Consistente",
+    "band": "Inicial",
     "statusTag": "NEAR-CLOSED"
   },
   "agentTodo": [

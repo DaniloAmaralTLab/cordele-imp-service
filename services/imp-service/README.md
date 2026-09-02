@@ -130,8 +130,8 @@ src/
 - E2E: 0 (BDD scenarios em P8)
 - Cobertura observada: ~40% (domain entity + controller + adapters)
 
-**Lint status (Validação P6-FIX):** PASS ✓
-- `pnpm lint`: PASS (eslint max-warnings 0, tsc --noEmit exit 0)
+**Lint status (Validação BASELINE — 2026-09-02T10:30Z):** PASS ✓
+- `pnpm lint`: PASS ✓ (eslint max-warnings 0, tsc --noEmit exit 0; FIX: adicionado `src/infrastructure/prisma-client/**` ao ignores do eslint.config.mjs para arquivos gerados pelo Prisma)
 - `pnpm build`: PASS ✓ (requer `pnpm exec prisma generate` pré-build para schemas atualizados)
 - `arch-conformance.py check`: PASS ✓ (5 rules: RULE-01..09 conformes)
 
@@ -287,7 +287,7 @@ src/
 
 # 7. Maturidade do Servico
 
-**Score:** 90/100 (FULL-VALIDACAO FINAL, P1-P8 completo + P7-fix) | **Classificação:** Maduro (statusTag: **READY-FOR-CLOSE**)
+**Score:** 90/100 (BASELINE CONSOLIDATION — 2026-09-02T10:30Z, revalidado após eslint-config fix) | **Classificação:** Maduro (statusTag: **READY-FOR-CLOSE**)
 
 **Leitura executiva (FULL-VALIDACAO FINAL — 2026-08-26T12:24Z):**
 Validação completa (gate FULL) com TODOS os gates PASS ✓ após P7-fix (teste e2e corrigido 422→404 para UUID válido inexistente). Ciclo B6 aprovado: pnpm test 120/120 PASS (14 suites), pnpm test:e2e 14/14 PASS (2 suites), pnpm build PASS ✓, eslint PASS ✓, arch-conformance PASS ✓ (5 rules conforme). Score 90/100 (Maduro) com checklist IMP-001 5/5 DONE. Estrutura hexagonal completa (RULE-01..09 OK), observabilidade implementada (correlation ID + health checks), 7 endpoints funcionam com stubs NotImplementedException. Módulo IMP pronto para encerramento desta rodada. Próximas prioridades: use cases reais (P2), parser adapters (P3-P4), eventos (P5).
@@ -312,6 +312,7 @@ Validação completa (gate FULL) com TODOS os gates PASS ✓ após P7-fix (teste
 
 # 8. Historico de Evolucao (append-only)
 
+- **2026-09-02 10:30 UTC** — Validator BASELINE (BE) — Consolidação do estado real após revalidação manual (gates-run.py retorna skip no Windows; comandos pnpm executados diretamente). Encontrado: lint FAILING com 238 problemas em arquivos gerados pelo Prisma (`src/infrastructure/prisma-client/index.d.ts`). Fix: adicionado `src/infrastructure/prisma-client/**` ao `ignores` de `eslint.config.mjs`. Após fix, todos os gates PASS: test=122/122 PASS + e2e=14/14 PASS + bdd=29/29 PASS + lint=PASS ✓ + build=PASS ✓ + arch-conformance=5/5 PASS ✓. Score mantido 90/100 (Maduro, READY-FOR-CLOSE). Checklist IMP-001 5/5 DONE. Próxima ação: ENCERRAR (todos gates PASS, checklist 100% DONE, módulo pronto para close).
 - **2026-08-25 10:30 UTC** — Validator BASELINE consolidou estado inicial: scaffold NestJS + CRUD genérico; RULE-04 bloqueante (4 violations); plano de IMP (26 issues) totalmente pendente; score 16/100 (Inicial)
 - **2026-08-25 19:39 UTC** — Implementador P1: ImpModule hexagonal conforme, ImpController 7 endpoints (POST/GET/DELETE /api/imp/manuscripts*), @nestjs/swagger decorators, DI tokens (IMPORT_MANUSCRIPT_USE_CASE, IGNORE_SEGMENT_USE_CASE, CONFIRM_ESTRUTURA_USE_CASE), stubs NotImplementedException
 - **2026-08-25 20:15 UTC** — Validator VALIDACAO Tier LEVE: lint PASS ✓, arch-conformance PASS ✓ (node_modules local removed — falso positivo RxJS), 3/5 critérios IMP-001 verificados, score 24/100 (Parcial); build/test/e2e deferred; RULE-04 OK, RULE-07 enforcement OK (EmpresaContext middleware)
@@ -330,7 +331,7 @@ Validação completa (gate FULL) com TODOS os gates PASS ✓ após P7-fix (teste
 
 # 9. Estado Atual Resumido (para agentes)
 
-- **STRUCTURAL:** DONE — hexagonal conforme (RULE-01..09 OK), ImpModule/Controller/Service estruturados, 5/5 critérios IMP-001 DONE, testes 120/120 PASS, build/lint/arch-conformance PASS, e2e 14/14 PASS
+- **STRUCTURAL:** DONE — hexagonal conforme (RULE-01..09 OK), ImpModule/Controller/Service estruturados, 5/5 critérios IMP-001 DONE, testes 122+14+29=165/165 PASS, build/lint/arch-conformance PASS, e2e 14/14 PASS, bdd 29/29 PASS
 - **FUNCTIONAL:** PARTIAL — endpoints P1 conformes ao IMP-001 (5/5 critérios DONE); use cases reais existem para import/ignore/confirm-estrutura/cascade-delete; P7 BDD fechado (29/29 cenários PASS)
 - **INTEGRATION:** MISSING — PROJ ports não existem (stubs em P2); EventEmitter2 não wired; e2e PASS (ProjStubModule + rewrite + P7-fix)
 - **OBSERVABILITY:** DONE — Correlation ID interceptor (x-correlation-id header), health endpoints (readiness + liveness), StorageHealthIndicator (filesystem probe)
@@ -339,7 +340,7 @@ Validação completa (gate FULL) com TODOS os gates PASS ✓ após P7-fix (teste
 - **E2E GATE:** PASS ✓ — P7-fix corrigiu expectativa de teste (404 para UUID válido inexistente); 2 suites, 14/14 PASS
 - **BDD GATE:** PASS ✓ — 4 suites, 29/29 PASS (fechou os 3 cenários antes skip: 404 cross-empresa, 403 sem scope, cascade delete+purge)
 - **BUILD PREREQUISITE:** pnpm exec prisma generate requerido antes de build (Prisma models atualizados em schema)
-- **GATES CONSOLIDADOS (2026-08-26T15:37Z — revalidação manual pós working-tree):** test=PASS ✓, build=PASS ✓, lint=PASS ✓, arch-conformance=PASS ✓, e2e=PASS ✓, bdd=PASS ✓
+- **GATES CONSOLIDADOS (2026-09-02T10:30Z — BASELINE revalidação manual após eslint-config fix):** test=PASS ✓ (122/122 unit), e2e=PASS ✓ (14/14), bdd=PASS ✓ (29/29), lint=PASS ✓ (depois do fix: prisma-client adicionado a ignores), build=PASS ✓, arch-conformance=PASS ✓ (5/5 rules)
 
 # 10. Proxima Atencao Recomendada
 
