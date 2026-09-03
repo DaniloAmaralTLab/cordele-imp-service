@@ -1,0 +1,8 @@
+{
+  "issue": "IMP-INT-001",
+  "layer": "be",
+  "softValue": 8,
+  "rationale": "Observabilidade 3/5 (CorrelationIdInterceptor gerado/ecoado, ProblemDetailFilter RFC7807, health endpoints readiness/liveness, logging estruturado com empresaId — GAP: correlationId não propagado aos logs via MDC/cls, sem middleware RequestLogger, sem métricas Prometheus). Multi-empresa RULE-07 5/5 (EmpresaContextMiddleware ALS, TenantPrismaFactory SET LOCAL search_path, withTenant obrigatório em todos repositórios, fail-fast via require(), testes de isolamento cross-schema passam em security.e2e-spec.ts IMP-017 e BDD scenarios IMP-020/021).",
+  "evaluatedAt": "2026-09-03T02:32:39Z",
+  "evaluatedBy": "validator-agent"
+}

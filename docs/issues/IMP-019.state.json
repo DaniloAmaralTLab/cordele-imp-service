@@ -1,0 +1,82 @@
+{
+  "issue": "IMP-019",
+  "layer": "be",
+  "computedAt": "2026-09-02T23:32:58",
+  "checklist": {
+    "total": 4,
+    "done": 3,
+    "partial": 0,
+    "missing": 1,
+    "blocked": 0,
+    "items": [
+      {
+        "text": "`GET /health` returns 200 with database and storage indicators UP on nominal",
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "Simulated DB failure (mocked PrismaService throws) → 503 with database indicator DOWN (e2e — requer banco; deferred ao validator)",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "Simulated storage failure → 503 with storage indicator DOWN (testado via mock fs)",
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "`pnpm test` on health indicator spec exits 0",
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
+      }
+    ]
+  },
+  "gates": {
+    "build": "pass",
+    "lint": "pass",
+    "test": "pass",
+    "e2e": "pass"
+  },
+  "score": {
+    "total": 90,
+    "provisional": false,
+    "range": [
+      90,
+      90
+    ],
+    "breakdown": {
+      "structure": {
+        "max": 30,
+        "value": 30,
+        "basis": "deterministic"
+      },
+      "functionality": {
+        "max": 30,
+        "value": 22,
+        "basis": "heuristic",
+        "needsAgentConfirm": true
+      },
+      "tests_lint": {
+        "max": 20,
+        "value": 20,
+        "basis": "deterministic"
+      },
+      "e2e": {
+        "max": 10,
+        "value": 10,
+        "basis": "deterministic"
+      },
+      "soft": {
+        "max": 10,
+        "value": 8,
+        "basis": "agent-persisted",
+        "needsAgentConfirm": false
+      }
+    },
+    "band": "Maduro",
+    "statusTag": "NEAR-CLOSED"
+  },
+  "agentTodo": [
+    "Confirmar functionality 22/30 -- a funcionalidade alvo funciona?"
+  ]
+}

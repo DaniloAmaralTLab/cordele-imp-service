@@ -1,0 +1,87 @@
+{
+  "issue": "IMP-020",
+  "layer": "be",
+  "computedAt": "2026-09-02T23:33:01",
+  "checklist": {
+    "total": 5,
+    "done": 3,
+    "partial": 0,
+    "missing": 2,
+    "blocked": 0,
+    "items": [
+      {
+        "text": "`manuscript-upload-sync-parse.feature` — all scenarios pass (201 golden path, 415, 413, 400 invalid-binding, 422 parse-failed, 422 projeto-not-found)",
+        "state": "DONE",
+        "evidence": "arquivo(s) presente(s) e nao-stub: manuscript-upload-sync-parse.feature"
+      },
+      {
+        "text": "`lossless-parse-unparsed-segments.feature` — all 7 reason OutlineExamples pass",
+        "state": "DONE",
+        "evidence": "arquivo(s) presente(s) e nao-stub: lossless-parse-unparsed-segments.feature"
+      },
+      {
+        "text": "`manuscript-immutability-and-tenancy.feature` — re-upload creates new manuscrito, cross-tenant → 404",
+        "state": "DONE",
+        "evidence": "arquivo(s) presente(s) e nao-stub: manuscript-immutability-and-tenancy.feature"
+      },
+      {
+        "text": "No scenario marked as `@pending`",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "`pnpm test:bdd` exits 0",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      }
+    ]
+  },
+  "gates": {
+    "build": "pass",
+    "lint": "pass",
+    "test": "pass",
+    "e2e": "pass"
+  },
+  "score": {
+    "total": 86,
+    "provisional": false,
+    "range": [
+      86,
+      86
+    ],
+    "breakdown": {
+      "structure": {
+        "max": 30,
+        "value": 30,
+        "basis": "deterministic"
+      },
+      "functionality": {
+        "max": 30,
+        "value": 18,
+        "basis": "heuristic",
+        "needsAgentConfirm": true
+      },
+      "tests_lint": {
+        "max": 20,
+        "value": 20,
+        "basis": "deterministic"
+      },
+      "e2e": {
+        "max": 10,
+        "value": 10,
+        "basis": "deterministic"
+      },
+      "soft": {
+        "max": 10,
+        "value": 8,
+        "basis": "agent-persisted",
+        "needsAgentConfirm": false
+      }
+    },
+    "band": "Maduro",
+    "statusTag": "REDUCED"
+  },
+  "agentTodo": [
+    "Confirmar functionality 18/30 -- a funcionalidade alvo funciona?"
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "issue": "IMP-004",
+  "layer": "be",
+  "computedAt": "2026-09-02T23:32:55",
+  "checklist": {
+    "total": 5,
+    "done": 0,
+    "partial": 0,
+    "missing": 5,
+    "blocked": 0,
+    "items": [
+      {
+        "text": "Use case imports only port interfaces (no adapter classes, no Prisma, no mammoth/remark)",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "golden path test: ManuscriptImported event fired once after save()",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "If storage fails before save(): no manuscrito persisted, no ManuscriptImported emitted",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "counts (totalCapitulos, totalImagens, trechosNaoParseados) derived from contentTree returned by parser",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "`pnpm test` on use-case spec exits 0",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      }
+    ]
+  },
+  "gates": {
+    "build": "pass",
+    "lint": "pass",
+    "test": "pass",
+    "e2e": "pass"
+  },
+  "score": {
+    "total": 68,
+    "provisional": false,
+    "range": [
+      68,
+      68
+    ],
+    "breakdown": {
+      "structure": {
+        "max": 30,
+        "value": 30,
+        "basis": "deterministic"
+      },
+      "functionality": {
+        "max": 30,
+        "value": 0,
+        "basis": "heuristic",
+        "needsAgentConfirm": true
+      },
+      "tests_lint": {
+        "max": 20,
+        "value": 20,
+        "basis": "deterministic"
+      },
+      "e2e": {
+        "max": 10,
+        "value": 10,
+        "basis": "deterministic"
+      },
+      "soft": {
+        "max": 10,
+        "value": 8,
+        "basis": "agent-persisted",
+        "needsAgentConfirm": false
+      }
+    },
+    "band": "Consistente",
+    "statusTag": "REDUCED"
+  },
+  "agentTodo": [
+    "Confirmar functionality 0/30 -- a funcionalidade alvo funciona?"
+  ]
+}

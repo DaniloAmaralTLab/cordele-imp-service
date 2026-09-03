@@ -1,0 +1,87 @@
+{
+  "issue": "IMP-007",
+  "layer": "be",
+  "computedAt": "2026-09-02T23:32:55",
+  "checklist": {
+    "total": 5,
+    "done": 0,
+    "partial": 0,
+    "missing": 5,
+    "blocked": 0,
+    "items": [
+      {
+        "text": "ignore() validates segmentoId exists in `manuscrito.estrutura` JSONB before persisting (422 if missing)",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "ignore() is idempotent: duplicate ignore returns `{ alreadyIgnored: true }` with HTTP 200",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "restore() deletes the curadoria row; throws 404 if no annotation exists",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "`manuscrito.estrutura` is NOT modified by any path (immutability)",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "`pnpm test` on use-case spec exits 0",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      }
+    ]
+  },
+  "gates": {
+    "build": "pass",
+    "lint": "pass",
+    "test": "pass",
+    "e2e": "pass"
+  },
+  "score": {
+    "total": 68,
+    "provisional": false,
+    "range": [
+      68,
+      68
+    ],
+    "breakdown": {
+      "structure": {
+        "max": 30,
+        "value": 30,
+        "basis": "deterministic"
+      },
+      "functionality": {
+        "max": 30,
+        "value": 0,
+        "basis": "heuristic",
+        "needsAgentConfirm": true
+      },
+      "tests_lint": {
+        "max": 20,
+        "value": 20,
+        "basis": "deterministic"
+      },
+      "e2e": {
+        "max": 10,
+        "value": 10,
+        "basis": "deterministic"
+      },
+      "soft": {
+        "max": 10,
+        "value": 8,
+        "basis": "agent-persisted",
+        "needsAgentConfirm": false
+      }
+    },
+    "band": "Consistente",
+    "statusTag": "REDUCED"
+  },
+  "agentTodo": [
+    "Confirmar functionality 0/30 -- a funcionalidade alvo funciona?"
+  ]
+}

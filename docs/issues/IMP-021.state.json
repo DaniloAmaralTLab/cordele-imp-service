@@ -1,0 +1,92 @@
+{
+  "issue": "IMP-021",
+  "layer": "be",
+  "computedAt": "2026-09-02T23:33:01",
+  "checklist": {
+    "total": 6,
+    "done": 0,
+    "partial": 0,
+    "missing": 6,
+    "blocked": 0,
+    "items": [
+      {
+        "text": "All 6 files exist in `tests/fixtures/imp/` after running `pnpm seed:imp-fixtures`",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "`livro-3-capitulos.docx` is parseable by mammoth (valid DOCX ZIP structure)",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "`livro-51mb.docx` is exactly > 52428800 bytes (verified by `wc -c`)",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "`livro-corrompido.docx` causes mammoth to throw (verified by parsing it directly in a unit test that expects the exception)",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "`livro.pdf` is rejected by IMP with 415 before any parsing attempt",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "Seed script is idempotent (running twice does not error)",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      }
+    ]
+  },
+  "gates": {
+    "build": "pass",
+    "lint": "pass",
+    "test": "pass",
+    "e2e": "pass"
+  },
+  "score": {
+    "total": 68,
+    "provisional": false,
+    "range": [
+      68,
+      68
+    ],
+    "breakdown": {
+      "structure": {
+        "max": 30,
+        "value": 30,
+        "basis": "deterministic"
+      },
+      "functionality": {
+        "max": 30,
+        "value": 0,
+        "basis": "heuristic",
+        "needsAgentConfirm": true
+      },
+      "tests_lint": {
+        "max": 20,
+        "value": 20,
+        "basis": "deterministic"
+      },
+      "e2e": {
+        "max": 10,
+        "value": 10,
+        "basis": "deterministic"
+      },
+      "soft": {
+        "max": 10,
+        "value": 8,
+        "basis": "agent-persisted",
+        "needsAgentConfirm": false
+      }
+    },
+    "band": "Consistente",
+    "statusTag": "REDUCED"
+  },
+  "agentTodo": [
+    "Confirmar functionality 0/30 -- a funcionalidade alvo funciona?"
+  ]
+}

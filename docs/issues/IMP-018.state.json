@@ -1,0 +1,82 @@
+{
+  "issue": "IMP-018",
+  "layer": "be",
+  "computedAt": "2026-09-02T23:32:57",
+  "checklist": {
+    "total": 4,
+    "done": 2,
+    "partial": 0,
+    "missing": 2,
+    "blocked": 0,
+    "items": [
+      {
+        "text": "Response always carries `X-Correlation-Id` (generated when absent from request)",
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "Successful import log entry contains: `{ correlationId, empresa, manuscritoId, formato, tamanhoBytes, totalCapitulos, trechosNaoParseados, parseDurationMs }` (structured JSON logger — P6 scope limite; deferred to P7)",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "ProblemDetail error responses include `traceId` matching `correlationId` (deferred to P7)",
+        "state": "MISSING",
+        "evidence": "desmarcado (sem arquivo verificavel)"
+      },
+      {
+        "text": "`pnpm test` on interceptor spec exits 0",
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
+      }
+    ]
+  },
+  "gates": {
+    "build": "pass",
+    "lint": "pass",
+    "test": "pass",
+    "e2e": "pass"
+  },
+  "score": {
+    "total": 83,
+    "provisional": false,
+    "range": [
+      83,
+      83
+    ],
+    "breakdown": {
+      "structure": {
+        "max": 30,
+        "value": 30,
+        "basis": "deterministic"
+      },
+      "functionality": {
+        "max": 30,
+        "value": 15,
+        "basis": "heuristic",
+        "needsAgentConfirm": true
+      },
+      "tests_lint": {
+        "max": 20,
+        "value": 20,
+        "basis": "deterministic"
+      },
+      "e2e": {
+        "max": 10,
+        "value": 10,
+        "basis": "deterministic"
+      },
+      "soft": {
+        "max": 10,
+        "value": 8,
+        "basis": "agent-persisted",
+        "needsAgentConfirm": false
+      }
+    },
+    "band": "Maduro",
+    "statusTag": "REDUCED"
+  },
+  "agentTodo": [
+    "Confirmar functionality 15/30 -- a funcionalidade alvo funciona?"
+  ]
+}

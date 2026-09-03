@@ -1,7 +1,7 @@
 {
   "issue": "IMP-001",
   "layer": "be",
-  "computedAt": "2026-09-02T10:53:34",
+  "computedAt": "2026-09-02T23:32:54",
   "checklist": {
     "total": 5,
     "done": 5,
@@ -37,22 +37,22 @@
     ]
   },
   "gates": {
-    "build": "unknown",
-    "lint": "unknown",
-    "test": "unknown",
-    "e2e": "unknown"
+    "build": "pass",
+    "lint": "pass",
+    "test": "pass",
+    "e2e": "pass"
   },
   "score": {
-    "total": 30,
-    "provisional": true,
+    "total": 98,
+    "provisional": false,
     "range": [
-      30,
-      40
+      98,
+      98
     ],
     "breakdown": {
       "structure": {
         "max": 30,
-        "value": 0,
+        "value": 30,
         "basis": "deterministic"
       },
       "functionality": {
@@ -63,26 +63,25 @@
       },
       "tests_lint": {
         "max": 20,
-        "value": 0,
+        "value": 20,
         "basis": "deterministic"
       },
       "e2e": {
         "max": 10,
-        "value": 0,
+        "value": 10,
         "basis": "deterministic"
       },
       "soft": {
         "max": 10,
-        "value": null,
-        "basis": "agent",
-        "needsAgentConfirm": true
+        "value": 8,
+        "basis": "agent-persisted",
+        "needsAgentConfirm": false
       }
     },
-    "band": "Inicial",
+    "band": "Maduro",
     "statusTag": "NEAR-CLOSED"
   },
   "agentTodo": [
-    "Confirmar functionality 30/30 -- a funcionalidade alvo funciona?",
-    "Avaliar soft 0-10 -- a11y + observability + multi-tenancy enforcement"
+    "Confirmar functionality 30/30 -- a funcionalidade alvo funciona?"
   ]
 }
