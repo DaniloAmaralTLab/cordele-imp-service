@@ -1,43 +1,43 @@
 {
   "issue": "IMP-013",
   "layer": "be",
-  "computedAt": "2026-09-02T23:32:56",
+  "computedAt": "2026-09-02T23:54:38",
   "checklist": {
     "total": 6,
-    "done": 0,
+    "done": 6,
     "partial": 0,
-    "missing": 6,
+    "missing": 0,
     "blocked": 0,
     "items": [
       {
         "text": "Same DOCX buffer always produces the same ContentTree (determinism test: parse twice, compare)",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "`livro-3-capitulos.docx` → counts: `{ chapters: 3, images: 2, unparsed: 0 }`",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "`livro-com-tabela-complexa.docx` → 1 UnparsedSegment with `reason: 'complex_table'`",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "Paragraph text is preserved verbatim (no trimming of author text)",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "`runs` concatenation equals `text` when both present",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "`pnpm test` on adapter spec exits 0",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       }
     ]
   },
@@ -48,11 +48,11 @@
     "e2e": "pass"
   },
   "score": {
-    "total": 68,
+    "total": 98,
     "provisional": false,
     "range": [
-      68,
-      68
+      98,
+      98
     ],
     "breakdown": {
       "structure": {
@@ -62,7 +62,7 @@
       },
       "functionality": {
         "max": 30,
-        "value": 0,
+        "value": 30,
         "basis": "heuristic",
         "needsAgentConfirm": true
       },
@@ -83,10 +83,10 @@
         "needsAgentConfirm": false
       }
     },
-    "band": "Consistente",
-    "statusTag": "REDUCED"
+    "band": "Maduro",
+    "statusTag": "NEAR-CLOSED"
   },
   "agentTodo": [
-    "Confirmar functionality 0/30 -- a funcionalidade alvo funciona?"
+    "Confirmar functionality 30/30 -- a funcionalidade alvo funciona?"
   ]
 }

@@ -123,6 +123,25 @@ portadas para o control plane** antes de qualquer execucao de scaffold que regen
 Artefatos afetados no control plane: `techlab-architecture/scripts/validator-score.py`,
 `techlab-architecture/commands/be-validator.md`.
 
+### Correcao adicional: gates-run.py -- resolucao de executavel no Windows (2026-09-02)
+
+`scripts/gates-run.py` `_subprocess_runner` foi corrigido neste repositorio para resolver o
+executavel via `shutil.which()` antes de chamar `subprocess.run`. No Windows, `pnpm` e `npx`
+sao wrappers `.CMD`; sem a resolucao previa, `subprocess.run(["pnpm", ...])` lancava
+`FileNotFoundError`, que o script convertia silenciosamente em veredito `"skip"` —
+violando o principio "a gate that cannot verify fails loudly, never passes in silence".
+
+**A correcao tambem precisa ser portada para `techlab-architecture/scripts/gates-run.py`**
+antes de qualquer geracao de scaffold que regenere este arquivo.
+
+Mudanca cirurgica em `_subprocess_runner` (linha ~210):
+- Antes: `subprocess.run(cmd, ...)` capturava `FileNotFoundError` → `found=False` → `"skip"`
+- Depois: `shutil.which(cmd[0])` → `None` = ausencia real (`"skip"`); path resolvido usado
+  no `subprocess.run`; falha de lancamento apos resolucao → `(1, True, msg)` → `"fail"` visivel.
+
+Comportamento em Linux/macOS: identico ao anterior (`shutil.which` encontra o mesmo caminho
+que o shell usaria).
+
 ---
 
 ## Consequencias

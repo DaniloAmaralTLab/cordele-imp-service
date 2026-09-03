@@ -1,33 +1,33 @@
 {
   "issue": "IMP-INT-004",
   "layer": "be",
-  "computedAt": "2026-09-02T23:33:02",
+  "computedAt": "2026-09-02T23:54:42",
   "checklist": {
     "total": 4,
-    "done": 0,
+    "done": 4,
     "partial": 0,
-    "missing": 4,
+    "missing": 0,
     "blocked": 0,
     "items": [
       {
         "text": "`PrismaTenantService.getClient()` switches schema to `emp_${slug}` before returning client",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "Unit test verifies `SET search_path` called with slug from EmpresaContext",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "Calling without EmpresaContext populated throws `TenantContextException`",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "`pnpm test` exits 0",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       }
     ]
   },
@@ -38,11 +38,11 @@
     "e2e": "pass"
   },
   "score": {
-    "total": 68,
+    "total": 98,
     "provisional": false,
     "range": [
-      68,
-      68
+      98,
+      98
     ],
     "breakdown": {
       "structure": {
@@ -52,7 +52,7 @@
       },
       "functionality": {
         "max": 30,
-        "value": 0,
+        "value": 30,
         "basis": "heuristic",
         "needsAgentConfirm": true
       },
@@ -73,10 +73,10 @@
         "needsAgentConfirm": false
       }
     },
-    "band": "Consistente",
-    "statusTag": "REDUCED"
+    "band": "Maduro",
+    "statusTag": "NEAR-CLOSED"
   },
   "agentTodo": [
-    "Confirmar functionality 0/30 -- a funcionalidade alvo funciona?"
+    "Confirmar functionality 30/30 -- a funcionalidade alvo funciona?"
   ]
 }

@@ -1,12 +1,12 @@
 {
   "issue": "IMP-020",
   "layer": "be",
-  "computedAt": "2026-09-02T23:33:01",
+  "computedAt": "2026-09-02T23:54:41",
   "checklist": {
     "total": 5,
-    "done": 3,
+    "done": 5,
     "partial": 0,
-    "missing": 2,
+    "missing": 0,
     "blocked": 0,
     "items": [
       {
@@ -26,13 +26,13 @@
       },
       {
         "text": "No scenario marked as `@pending`",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "`pnpm test:bdd` exits 0",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       }
     ]
   },
@@ -43,11 +43,11 @@
     "e2e": "pass"
   },
   "score": {
-    "total": 86,
+    "total": 98,
     "provisional": false,
     "range": [
-      86,
-      86
+      98,
+      98
     ],
     "breakdown": {
       "structure": {
@@ -57,7 +57,7 @@
       },
       "functionality": {
         "max": 30,
-        "value": 18,
+        "value": 30,
         "basis": "heuristic",
         "needsAgentConfirm": true
       },
@@ -79,9 +79,9 @@
       }
     },
     "band": "Maduro",
-    "statusTag": "REDUCED"
+    "statusTag": "NEAR-CLOSED"
   },
   "agentTodo": [
-    "Confirmar functionality 18/30 -- a funcionalidade alvo funciona?"
+    "Confirmar functionality 30/30 -- a funcionalidade alvo funciona?"
   ]
 }

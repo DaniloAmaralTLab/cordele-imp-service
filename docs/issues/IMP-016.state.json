@@ -1,38 +1,38 @@
 {
   "issue": "IMP-016",
   "layer": "be",
-  "computedAt": "2026-09-02T23:32:57",
+  "computedAt": "2026-09-02T23:54:38",
   "checklist": {
     "total": 5,
-    "done": 0,
+    "done": 5,
     "partial": 0,
-    "missing": 5,
+    "missing": 0,
     "blocked": 0,
     "items": [
       {
         "text": "`put(key, stream, mime)` writes to `${IMP_STORAGE_LOCAL_ROOT}/${key}` creating intermediate dirs",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "Key is always prefixed with the tenant slug from EmpresaContext (never caller-supplied path)",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "`get(key)` returns a readable stream; throws `StorageNotFoundException` if key absent",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "`delete(key)` removes the file; no-ops silently if already absent (idempotent)",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "`pnpm test` exits 0",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       }
     ]
   },
@@ -43,11 +43,11 @@
     "e2e": "pass"
   },
   "score": {
-    "total": 68,
+    "total": 98,
     "provisional": false,
     "range": [
-      68,
-      68
+      98,
+      98
     ],
     "breakdown": {
       "structure": {
@@ -57,7 +57,7 @@
       },
       "functionality": {
         "max": 30,
-        "value": 0,
+        "value": 30,
         "basis": "heuristic",
         "needsAgentConfirm": true
       },
@@ -78,10 +78,10 @@
         "needsAgentConfirm": false
       }
     },
-    "band": "Consistente",
-    "statusTag": "REDUCED"
+    "band": "Maduro",
+    "statusTag": "NEAR-CLOSED"
   },
   "agentTodo": [
-    "Confirmar functionality 0/30 -- a funcionalidade alvo funciona?"
+    "Confirmar functionality 30/30 -- a funcionalidade alvo funciona?"
   ]
 }

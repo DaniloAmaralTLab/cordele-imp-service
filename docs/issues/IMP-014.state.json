@@ -1,38 +1,38 @@
 {
   "issue": "IMP-014",
   "layer": "be",
-  "computedAt": "2026-09-02T23:32:57",
+  "computedAt": "2026-09-02T23:54:38",
   "checklist": {
     "total": 5,
-    "done": 0,
+    "done": 5,
     "partial": 0,
-    "missing": 5,
+    "missing": 0,
     "blocked": 0,
     "items": [
       {
         "text": "Heading 1 → chapter boundary; Heading 2 → section boundary",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "Image nodes normalized to `ImageBlock` with `storageKey` placeholder (actual key assigned by FileStoragePort on upload)",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "Missing image reference → `UnparsedSegment(reason: 'unsupported_markup')` with `rawContent`",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "Determinism test passes (parse twice → same tree)",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "`pnpm test` exits 0",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       }
     ]
   },
@@ -43,11 +43,11 @@
     "e2e": "pass"
   },
   "score": {
-    "total": 68,
+    "total": 98,
     "provisional": false,
     "range": [
-      68,
-      68
+      98,
+      98
     ],
     "breakdown": {
       "structure": {
@@ -57,7 +57,7 @@
       },
       "functionality": {
         "max": 30,
-        "value": 0,
+        "value": 30,
         "basis": "heuristic",
         "needsAgentConfirm": true
       },
@@ -78,10 +78,10 @@
         "needsAgentConfirm": false
       }
     },
-    "band": "Consistente",
-    "statusTag": "REDUCED"
+    "band": "Maduro",
+    "statusTag": "NEAR-CLOSED"
   },
   "agentTodo": [
-    "Confirmar functionality 0/30 -- a funcionalidade alvo funciona?"
+    "Confirmar functionality 30/30 -- a funcionalidade alvo funciona?"
   ]
 }

@@ -1,43 +1,43 @@
 {
   "issue": "IMP-021",
   "layer": "be",
-  "computedAt": "2026-09-02T23:33:01",
+  "computedAt": "2026-09-02T23:54:41",
   "checklist": {
     "total": 6,
-    "done": 0,
+    "done": 6,
     "partial": 0,
-    "missing": 6,
+    "missing": 0,
     "blocked": 0,
     "items": [
       {
         "text": "All 6 files exist in `tests/fixtures/imp/` after running `pnpm seed:imp-fixtures`",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "`livro-3-capitulos.docx` is parseable by mammoth (valid DOCX ZIP structure)",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "`livro-51mb.docx` is exactly > 52428800 bytes (verified by `wc -c`)",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "`livro-corrompido.docx` causes mammoth to throw (verified by parsing it directly in a unit test that expects the exception)",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "`livro.pdf` is rejected by IMP with 415 before any parsing attempt",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       },
       {
         "text": "Seed script is idempotent (running twice does not error)",
-        "state": "MISSING",
-        "evidence": "desmarcado (sem arquivo verificavel)"
+        "state": "DONE",
+        "evidence": "marcado (sem arquivo verificavel)"
       }
     ]
   },
@@ -48,11 +48,11 @@
     "e2e": "pass"
   },
   "score": {
-    "total": 68,
+    "total": 98,
     "provisional": false,
     "range": [
-      68,
-      68
+      98,
+      98
     ],
     "breakdown": {
       "structure": {
@@ -62,7 +62,7 @@
       },
       "functionality": {
         "max": 30,
-        "value": 0,
+        "value": 30,
         "basis": "heuristic",
         "needsAgentConfirm": true
       },
@@ -83,10 +83,10 @@
         "needsAgentConfirm": false
       }
     },
-    "band": "Consistente",
-    "statusTag": "REDUCED"
+    "band": "Maduro",
+    "statusTag": "NEAR-CLOSED"
   },
   "agentTodo": [
-    "Confirmar functionality 0/30 -- a funcionalidade alvo funciona?"
+    "Confirmar functionality 30/30 -- a funcionalidade alvo funciona?"
   ]
 }
