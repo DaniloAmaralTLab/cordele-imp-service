@@ -30,10 +30,10 @@ The listener stub logs receipt without side-effects (PROJ handler replaces it).
 
 ## Criterios de aceite
 
-- [ ] `EventEmitter2Module.forRoot()` registered in ImpModule (or AppModule)
-- [ ] `@OnEvent('manuscript.imported')` listener registered and receives event after import
-- [ ] Listener log entry confirms `manuscritoId` and `projetoId` values
-- [ ] `pnpm test` does not fail due to unhandled event
+- [x] `EventEmitter2Module.forRoot()` registered in ImpModule (or AppModule)
+- [x] `@OnEvent('manuscript.imported')` listener registered and receives event after import
+- [x] Listener log entry confirms `manuscritoId` and `projetoId` values
+- [x] `pnpm test` does not fail due to unhandled event
 
 ## Dependencias
 

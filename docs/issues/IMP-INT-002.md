@@ -32,10 +32,10 @@ Files to create:
 
 ## Criterios de aceite
 
-- [ ] `ADVANCE_PROJETO_STATUS_PORT` DI token registered in ImpModule
-- [ ] Stub returns `{ projetoId, newStatus: 'em_composicao' }` — always succeeds (dev scaffold mode)
-- [ ] `pnpm build` exits 0
-- [ ] Unit test for ConfirmEstruturaUseCase can override the stub via `overrideProvider`
+- [x] `ADVANCE_PROJETO_STATUS_PORT` DI token registered in ImpModule
+- [x] Stub returns `{ projetoId, newStatus: 'em_composicao' }` — always succeeds (dev scaffold mode)
+- [x] `pnpm build` exits 0
+- [x] Unit test for ConfirmEstruturaUseCase can override the stub via `overrideProvider`
 
 ## Dependencias
 

@@ -31,10 +31,10 @@ Files to create:
 
 ## Criterios de aceite
 
-- [ ] DI tokens `CREATE_PROJETO_USE_CASE` and `PROJETO_EDITORIAL_LOOKUP` registered in ImpModule
-- [ ] Stubs implement the port interfaces (TypeScript compiles)
-- [ ] Integration test can override stubs via `overrideProvider` in NestJS testing module
-- [ ] `pnpm build` exits 0
+- [x] DI tokens `CREATE_PROJETO_USE_CASE` and `PROJETO_EDITORIAL_LOOKUP` registered in ImpModule
+- [x] Stubs implement the port interfaces (TypeScript compiles)
+- [x] Integration test can override stubs via `overrideProvider` in NestJS testing module
+- [x] `pnpm build` exits 0
 
 ## Dependencias
 

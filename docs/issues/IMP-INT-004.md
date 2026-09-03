@@ -30,10 +30,10 @@ because `EmpresaContext` always comes from the JWT claim (IMP-017 ensures this).
 
 ## Criterios de aceite
 
-- [ ] `PrismaTenantService.getClient()` switches schema to `emp_${slug}` before returning client
-- [ ] Unit test verifies `SET search_path` called with slug from EmpresaContext
-- [ ] Calling without EmpresaContext populated throws `TenantContextException`
-- [ ] `pnpm test` exits 0
+- [x] `PrismaTenantService.getClient()` switches schema to `emp_${slug}` before returning client
+- [x] Unit test verifies `SET search_path` called with slug from EmpresaContext
+- [x] Calling without EmpresaContext populated throws `TenantContextException`
+- [x] `pnpm test` exits 0
 
 ## Dependencias
 
