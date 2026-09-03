@@ -1,7 +1,7 @@
 {
   "issue": "IMP-INT-002",
   "layer": "be",
-  "computedAt": "2026-09-02T23:54:42",
+  "computedAt": "2026-09-03T00:54:06",
   "checklist": {
     "total": 4,
     "done": 4,
@@ -38,11 +38,11 @@
     "e2e": "pass"
   },
   "score": {
-    "total": 98,
+    "total": 96,
     "provisional": false,
     "range": [
-      98,
-      98
+      96,
+      96
     ],
     "breakdown": {
       "structure": {
@@ -68,7 +68,7 @@
       },
       "soft": {
         "max": 10,
-        "value": 8,
+        "value": 6,
         "basis": "agent-persisted",
         "needsAgentConfirm": false
       }

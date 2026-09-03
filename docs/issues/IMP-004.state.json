@@ -1,7 +1,7 @@
 {
   "issue": "IMP-004",
   "layer": "be",
-  "computedAt": "2026-09-02T23:54:36",
+  "computedAt": "2026-09-03T00:53:59",
   "checklist": {
     "total": 5,
     "done": 5,
@@ -43,11 +43,11 @@
     "e2e": "pass"
   },
   "score": {
-    "total": 98,
+    "total": 96,
     "provisional": false,
     "range": [
-      98,
-      98
+      96,
+      96
     ],
     "breakdown": {
       "structure": {
@@ -73,7 +73,7 @@
       },
       "soft": {
         "max": 10,
-        "value": 8,
+        "value": 6,
         "basis": "agent-persisted",
         "needsAgentConfirm": false
       }
