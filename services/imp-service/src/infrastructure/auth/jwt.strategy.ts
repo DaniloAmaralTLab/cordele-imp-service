@@ -31,7 +31,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       issuer,
-      audience: config.get<string>('JWT_AUDIENCE') ?? 'cordele',
+      audience: config.getOrThrow<string>('JWT_AUDIENCE'),
       algorithms: ['RS256'],
       secretOrKeyProvider: passportJwtSecret({
         jwksUri: `${issuer}/protocol/openid-connect/certs`,
