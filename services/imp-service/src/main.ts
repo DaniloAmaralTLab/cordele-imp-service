@@ -25,6 +25,7 @@ async function bootstrap(): Promise<void> {
   app.use(helmet());
   app.use(compression());
 
+  // eslint-disable-next-line no-restricted-syntax -- safe default: CORS_ORIGINS key does not match the sensitive-suffix list; '*' default is intentional for development. Set CORS_ORIGINS explicitly in production deployments.
   const corsOrigins = (config.get<string>('CORS_ORIGINS') ?? '*')
     .split(',')
     .map((origin) => origin.trim())
@@ -68,6 +69,7 @@ async function bootstrap(): Promise<void> {
     swaggerOptions: { persistAuthorization: true },
   });
 
+  // eslint-disable-next-line no-restricted-syntax -- safe default: PORT is the service's own listen port (not an external dependency URL/host); 3000 is an acceptable local-dev default
   const port = Number(config.get<string>('PORT') ?? 3000);
   await app.listen(port, '0.0.0.0');
 

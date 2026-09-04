@@ -33,8 +33,7 @@ export class FindProjetoAdapter implements FindProjetoPort {
   private readonly projBaseUrl: string;
 
   constructor(config: ConfigService) {
-    this.projBaseUrl =
-      config.get<string>('PROJ_SERVICE_BASE_URL') ?? 'http://localhost:3003';
+    this.projBaseUrl = config.getOrThrow<string>('PROJ_SERVICE_BASE_URL');
   }
 
   async findById(
