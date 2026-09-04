@@ -12,7 +12,7 @@ import { DatabaseModule } from './infrastructure/persistence/database.module';
 import { PersistenceModule } from './infrastructure/persistence/persistence.module';
 import { EventBusModule } from './infrastructure/events/event-bus.module';
 import { HealthModule } from './infrastructure/health/health.module';
-import { ProjStubModule } from './infrastructure/proj/proj-stub.module';
+import { ProjHttpModule } from './infrastructure/proj/proj-http.module';
 import { ImpModule } from './modules/imp/imp.module';
 
 /**
@@ -31,9 +31,11 @@ import { ImpModule } from './modules/imp/imp.module';
  * decodificando o JWT Bearer sem verificação criptográfica (a verificação
  * acontece no JwtAuthGuard, que roda depois). RULE-07.
  *
- * Stubs PROJ (P2): CreateProjetoEditorialStub + AdvanceProjetoStatusStub providos pelo
- * ProjStubModule (@Global) até o PROJ service estar disponível (IMP-INT-001 + IMP-INT-002).
- * ProjStubModule exporta os tokens, tornando-os visíveis para ImpModule sem violar RULE-04.
+ * PROJ HTTP (IMP-INT-001 + IMP-INT-002 + D-C): adapters HTTP reais providos pelo
+ * ProjHttpModule (@Global). Usa factory condicional por PROJ_SERVICE_BASE_URL:
+ *   - Definida → adapters reais (fetch nativo).
+ *   - Não definida → stubs in-memory (fallback).
+ * ProjHttpModule exporta os tokens, tornando-os visíveis para ImpModule sem violar RULE-04.
  */
 @Module({
   imports: [
@@ -47,7 +49,7 @@ import { ImpModule } from './modules/imp/imp.module';
     DatabaseModule,
     PersistenceModule,
     EventBusModule,
-    ProjStubModule,
+    ProjHttpModule,
     AuthModule,
     ImpModule,
   ],

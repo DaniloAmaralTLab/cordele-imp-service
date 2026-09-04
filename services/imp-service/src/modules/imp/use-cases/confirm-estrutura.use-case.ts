@@ -13,6 +13,13 @@ export interface ConfirmEstruturaCommand {
   readonly manuscritoId: string;
   /** Slug da empresa — requerido antes do primeiro acesso ao repositório (RULE-07). */
   readonly empresaId: string;
+  /**
+   * Bearer token do usuário que originou a requisição HTTP.
+   * Propagado para o port AdvanceProjetoStatusPort para autenticar a chamada
+   * HTTP ao proj-service sob o mesmo principal do usuário.
+   * Opcional para compatibilidade com testes unitários.
+   */
+  readonly bearerToken?: string;
 }
 
 /**
@@ -37,7 +44,7 @@ export class ConfirmEstruturaUseCase {
   ) {}
 
   async execute(command: ConfirmEstruturaCommand): Promise<void> {
-    const { manuscritoId, empresaId } = command;
+    const { manuscritoId, empresaId, bearerToken } = command;
 
     // RULE-07: empresaId requerido antes do primeiro repositório.
     const manuscrito = await this.manuscritoRepo.findById(manuscritoId, empresaId);
@@ -51,6 +58,7 @@ export class ConfirmEstruturaUseCase {
         projetoId: manuscrito.projetoId,
         targetStatus: 'COMPOSICAO',
         empresaId,
+        bearerToken,
       });
     } catch (err) {
       throw new ProjetoIntegrationError(

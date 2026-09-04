@@ -14,6 +14,12 @@ export interface CreateProjetoEditorialInput {
   readonly titulo: string;
   /** Slug da empresa (multi-empresa). */
   readonly empresaId: string;
+  /**
+   * Bearer token do usuário que originou a requisição.
+   * Propagado para o PROJ service (padrão estabelecido por ImpManuscriptContentAdapter).
+   * Opcional para compatibilidade retroativa com stubs/testes.
+   */
+  readonly bearerToken?: string;
 }
 
 export interface CreateProjetoEditorialOutput {
@@ -42,6 +48,12 @@ export interface AdvanceProjetoStatusInput {
   readonly targetStatus: string;
   /** Slug da empresa (multi-empresa). */
   readonly empresaId: string;
+  /**
+   * Bearer token do usuário que originou a requisição.
+   * Propagado para o PROJ service.
+   * Opcional para compatibilidade retroativa com stubs/testes.
+   */
+  readonly bearerToken?: string;
 }
 
 /**

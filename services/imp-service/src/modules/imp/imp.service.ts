@@ -59,6 +59,7 @@ export class ImpService {
     dto: UploadManuscritoDto,
     user: AuthenticatedUser,
     file: Express.Multer.File,
+    bearerToken?: string,
   ): Promise<ManuscritoDetailDto> {
     this.logger.log(
       `importManuscrito — projetoId=${dto.projetoId ?? 'n/a'} projetoTitulo=${dto.projetoTitulo ?? 'n/a'} empresa=${user.empresaId}`,
@@ -73,6 +74,7 @@ export class ImpService {
       mimeType: file.mimetype,
       fileBuffer: file.buffer,
       empresaId: user.empresaId,
+      bearerToken,
     });
   }
 
@@ -189,11 +191,13 @@ export class ImpService {
   async confirmEstrutura(
     manuscritoId: string,
     user: AuthenticatedUser,
+    bearerToken?: string,
   ): Promise<void> {
     try {
       await this.confirmEstruturaUseCase.execute({
         manuscritoId,
         empresaId: user.empresaId,
+        bearerToken,
       });
     } catch (err) {
       if (

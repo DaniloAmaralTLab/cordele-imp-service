@@ -48,6 +48,13 @@ export interface ImportManuscriptCommand {
   readonly projetoTitulo?: string;
   /** Slug da empresa — requerido para isolamento multi-empresa (RULE-07). */
   readonly empresaId: string;
+  /**
+   * Bearer token do usuário que originou a requisição HTTP.
+   * Propagado para os ports PROJ (createProjeto / findProjeto) para autenticar
+   * as chamadas HTTP ao proj-service sob o mesmo principal do usuário.
+   * Opcional para compatibilidade com testes unitários que não precisam de auth.
+   */
+  readonly bearerToken?: string;
 }
 
 /**
@@ -91,7 +98,7 @@ export class ImportManuscriptUseCase {
   ) {}
 
   async execute(command: ImportManuscriptCommand): Promise<ManuscritoDetailDto> {
-    const { filename, fileBuffer, empresaId, projetoId, projetoTitulo } = command;
+    const { filename, fileBuffer, empresaId, projetoId, projetoTitulo, bearerToken } = command;
 
     // ── 1. Validação de tamanho (413) — antes de qualquer I/O ────────────────
     if (fileBuffer.length > MAX_FILE_SIZE_BYTES) {
@@ -117,7 +124,7 @@ export class ImportManuscriptUseCase {
 
     if (projetoId) {
       // Valida que o projeto existe na empresa ativa (422 se não existir).
-      const found = await this.findProjeto.findById(projetoId, empresaId);
+      const found = await this.findProjeto.findById(projetoId, empresaId, bearerToken);
       if (!found) {
         throw new ProjetoNaoEncontradoError(projetoId);
       }
@@ -129,6 +136,7 @@ export class ImportManuscriptUseCase {
         manuscritoId,
         titulo: projetoTitulo!,
         empresaId,
+        bearerToken,
       });
       resolvedProjetoId = created.projetoId;
       // Continuar com o manuscritoId pré-alocado para manter a consistência.

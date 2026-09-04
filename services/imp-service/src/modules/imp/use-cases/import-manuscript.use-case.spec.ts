@@ -117,7 +117,7 @@ describe('ImportManuscriptUseCase', () => {
 
       const result = await useCase.execute(baseCommand);
 
-      expect(findProjeto.findById).toHaveBeenCalledWith('proj-001', 'aetos');
+      expect(findProjeto.findById).toHaveBeenCalledWith('proj-001', 'aetos', undefined);
       expect(parser.parse).toHaveBeenCalledWith(baseCommand.fileBuffer, DOCX_MIME);
       expect(fileStorage.store).toHaveBeenCalled();
       expect(manuscritoRepo.save).toHaveBeenCalled();

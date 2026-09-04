@@ -14,8 +14,17 @@ export interface FindProjetoPort {
   /**
    * Procura um ProjetoEditorial pelo id dentro da empresa ativa.
    * Retorna null se não existir — nunca revela existência cross-tenant.
+   *
+   * @param projetoId  ID do projeto a procurar.
+   * @param empresaId  Slug da empresa (multi-empresa).
+   * @param bearerToken  Bearer token do usuário (propagado para o PROJ service).
+   *                     Opcional para compatibilidade com stubs/testes.
    */
-  findById(projetoId: string, empresaId: string): Promise<FindProjetoOutput | null>;
+  findById(
+    projetoId: string,
+    empresaId: string,
+    bearerToken?: string,
+  ): Promise<FindProjetoOutput | null>;
 }
 
 /** Token de DI para FindProjetoPort. */

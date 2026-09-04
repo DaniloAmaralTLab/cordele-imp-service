@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -60,11 +61,12 @@ export class ImpController {
     @Body() dto: UploadManuscritoDto,
     @CurrentUser() user: AuthenticatedUser,
     @UploadedFile() file: Express.Multer.File | undefined,
+    @Headers('authorization') authorization?: string,
   ): Promise<ManuscritoDetailDto> {
     if (!file) {
       throw new BadRequestException('O campo "file" (arquivo) é obrigatório.');
     }
-    return this.impService.importManuscrito(dto, user, file);
+    return this.impService.importManuscrito(dto, user, file, authorization);
   }
 
   /**
@@ -173,7 +175,8 @@ export class ImpController {
   confirmEstrutura(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: AuthenticatedUser,
+    @Headers('authorization') authorization?: string,
   ): Promise<void> {
-    return this.impService.confirmEstrutura(id, user);
+    return this.impService.confirmEstrutura(id, user, authorization);
   }
 }
