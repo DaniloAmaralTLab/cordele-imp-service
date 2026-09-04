@@ -1,273 +1,353 @@
-# RBAC Model & Access Matrix (Cordelê)
+# Modelo de RBAC — Cordelê
 
-> Modelo de papéis, permissões e decisão de acesso do Cordelê.
-> Simples por design: grupo familiar de empresas, sem SaaS multi-cliente, sem multi-SSO.
+> Papéis, scopes OAuth2 e contrato de JWT do Cordelê, **derivados do código real**
+> dos quatro serviços (`imp`, `comp`, `pub`, `proj`) e das specs por serviço.
+>
+> Público-alvo: quem vai (a) configurar o realm do Keycloak e (b) implementar/alterar
+> guards de autorização.
+>
+> **Regra deste documento:** só descreve o que existe no código ou está fechado em
+> spec. Tudo que é proposta ou decisão pendente está marcado como tal — em §7 e nas
+> linhas com `PROPOSTO` / `NÃO IMPLEMENTADO`.
+
+---
 
 ## Quando usar este arquivo
 
-- Implementar papéis, permissões ou lógica de avaliação de acesso.
-- Trabalhar em guards/filters de autorização.
-- Adicionar permission key nova num módulo.
-- Implementar troca de empresa por usuário com acesso a múltiplas.
+- Criar/ajustar client scopes, roles e protocol mappers no realm do Keycloak.
+- Implementar ou revisar `JwtAuthGuard` / `@RequiredScopes` num serviço.
+- Mapear uma permission key do frontend (`AccessDecisionService.can()`) para um scope BE.
+- Entender como `empresa_id` chega ao `search_path` do Postgres.
 
 ---
 
-## 1. Papéis canônicos (Cordelê)
+## 1. O que o Cordelê é (e o que isso implica para o RBAC)
 
-Cordelê tem **6 papéis padrão** (escopados por empresa via `usuario_empresa`):
+O Cordelê transforma manuscritos em ePub. O fluxo operacional é linear:
 
-| Role Code | Resumo | Escopo de dados |
+```
+IMP (importar manuscrito, revisar estrutura)
+  → COMP (metadados, capa, layout)
+    → PUB (gerar/validar/baixar o ePub)
+      ↕ PROJ (projeto editorial: ciclo de vida, biblioteca, histórico, erasure LGPD)
+```
+
+Duas consequências diretas:
+
+1. **Não há segregação funcional forte entre etapas.** Quem importa é, na prática, quem
+   compõe e quem publica — a persona declarada em `arch/decisions/rbac.arch.json` é uma
+   só (`COORDENADORA_EDITORIAL`, "Marina, coordenadora editorial em editora independente
+   com 20–80 títulos/ano"). O conjunto mínimo de papéis é pequeno de propósito.
+2. **A autorização é feita por scope OAuth2, não por papel.** Nenhum controller consulta
+   papel. O único papel lido em código é `empresa-admin`, e só para o override de empresa
+   (§5). Papéis existem para **agrupar scopes no Keycloak** — é o Keycloak quem traduz
+   papel → scopes no token.
+
+---
+
+## 2. Scopes — o vocabulário real de autorização
+
+Estes são **os scopes efetivamente exigidos por `@RequiredScopes` no código hoje**:
+
+| Serviço | Scope | Onde é exigido |
 |---|---|---|
-| `ADMIN` | Controle total da empresa (config, RBAC, parâmetros) | Toda a empresa |
-| `GERENTE` | Aprova orçamentos, fecha vendas, vê relatórios consolidados | Toda a empresa |
-| `VENDEDOR` | Cria orçamentos, vendas, atende clientes; vê apenas seus próprios | Próprios documentos (data_scope = vendedor_id) |
-| `FISCAL` | Emite/cancela NFe, gerencia matriz tributária | Toda a empresa (módulo FIS) |
-| `FINANCEIRO` | Gerencia caixa, contas a pagar/receber, conciliação | Toda a empresa (módulo FIN) |
-| `ALMOXARIFE` | Movimenta estoque, faz inventário, recebe NF | Toda a empresa (módulo EST) |
+| `imp-service` | `imp:read` | `GET manuscripts/:id`, `GET manuscripts/:id/estrutura`, `GET manuscripts/:id/segmentos/ignored` |
+| `comp-service` | `comp:read` | `GET metadados`, `GET layout`, `GET preview-context` |
+| `comp-service` | `comp:write` | `PUT metadados`, `POST capa`, `DELETE capa`, `PUT layout` |
+| `pub-service` | `pub:read` | `GET .../status`, `GET publicacoes`, `GET .../download`, `GET .../stats`, `GET .../validation-messages` |
+| `pub-service` | `pub:write` | `POST projetos/:projetoId/publicacoes` |
+| `proj-service` | `proj:read` | `GET projetos`, `GET projetos/:id`, `GET .../publicacoes`, `GET .../download` |
+| `proj-service` | `proj:write` | `POST projetos`, `POST .../reopen`, `POST .../advance-status` |
+| `proj-service` | `proj:delete` | `DELETE projetos/:projetoId` (erasure LGPD — scope privilegiado, PROJ-014) |
 
-### Papéis adicionais (opcionais, conforme demanda)
+**`imp:write` não existe em nenhum ponto do código.** Ele está declarado na spec
+(`imp-service/contracts/api-contract.md` §2 e §4.1, `SPEC-06-security.md`) e no mapa de
+permissões do frontend (`imp.import` → `imp:write`), mas nenhum handler o exige. Ver §6.
 
-| Role Code | Uso |
+### Semântica do guard
+
+- `@RequiredScopes(a, b)` = **OR** (`required.some(...)`), não AND.
+- Handler **sem** `@RequiredScopes` = qualquer principal autenticado passa (o guard faz
+  no-op quando não há metadata).
+- Sem token / token expirado → **401**. Token válido sem o scope → **403**.
+- Recurso de outra empresa → **404** por spec (evita enumeração cross-tenant), não 403.
+
+---
+
+## 3. Papéis do Cordelê
+
+Conjunto mínimo. Um papel só entra aqui se cobre um fluxo que existe.
+
+| Papel (realm role) | Status | Para quem | Racional |
+|---|---|---|---|
+| `empresa-admin` | **EM CÓDIGO** | Administração da editora / suporte da plataforma | Único papel lido em código: habilita o override de empresa via `X-Tenant-Id` (§5). Nos quatro serviços. |
+| `coordenadora-editorial` | **PROPOSTO** | Marina — a persona operacional declarada | É o único papel de negócio declarado em `arch/decisions/rbac.arch.json` (code canônico `COORDENADORA_EDITORIAL`). Cobre o fluxo inteiro importar → compor → publicar → gerir projetos. |
+| `leitor-editorial` | **PROPOSTO** | Acompanhamento sem direito de alteração (revisão externa, autor, direção) | Read-only. Cobre a necessidade real de "ver o andamento e baixar o ePub" sem poder alterar nada. |
+
+Nenhum outro papel é proposto. Papéis por etapa do pipeline (um "importador", um
+"diagramador", um "publicador") **não** são recomendados: nenhum controller distingue
+etapas por papel, e a persona declarada faz o ciclo inteiro. Se a segregação for pedida
+por negócio, ela é implementável só com os scopes da §2 — sem mudança de código.
+
+> `COORDENADORA_EDITORIAL` é o code canônico em `arch/decisions/rbac.arch.json` e em
+> `papeis.md`. O nome do **realm role** no Keycloak é proposto aqui em kebab-case para
+> ficar consistente com `empresa-admin`, que já existe em código. Escolher um dos dois
+> formatos e padronizar é decisão pendente (§7).
+
+---
+
+## 4. Matriz papel × scope
+
+Diretamente traduzível para client scopes do Keycloak: cada célula ✓ é um client scope
+default associado ao role.
+
+| Scope | `empresa-admin` | `coordenadora-editorial` | `leitor-editorial` |
+|---|:--:|:--:|:--:|
+| `imp:read` | ✓ | ✓ | ✓ |
+| `comp:read` | ✓ | ✓ | ✓ |
+| `comp:write` | ✓ | ✓ | — |
+| `pub:read` | ✓ | ✓ | ✓ |
+| `pub:write` | ✓ | ✓ | — |
+| `proj:read` | ✓ | ✓ | ✓ |
+| `proj:write` | ✓ | ✓ | — |
+| `proj:delete` | ✓ | — | — |
+| `imp:write` *(não existe em código — §6)* | ✓ | ✓ | — |
+
+Notas de leitura:
+
+- **`proj:delete` só no `empresa-admin`.** É o scope de erasure LGPD (`DELETE /projetos/:id`,
+  cascata para IMP/COMP/PUB via adapters de erasure). PROJ-014 o classifica como
+  privilegiado. Se a coordenadora precisar apagar os próprios projetos, isso é uma decisão
+  de negócio a tomar explicitamente (§7) — não um default.
+- **`leitor-editorial` recebe `pub:read`**, o que inclui o download do ePub gerado
+  (`GET .../publicacoes/:id/download`). Se o download precisar ser mais restrito que a
+  leitura de status, é preciso um scope novo — hoje ambos caem em `pub:read`.
+- A linha `imp:write` está na matriz porque o frontend **já** a consome (`imp.import` e
+  `imp.confirm` no `imp.permission-map.ts`): sem ela no token, os botões de importar e
+  confirmar ficam escondidos na UI, mesmo que o backend hoje aceite a chamada.
+
+### Mapa de permission keys do frontend
+
+O FE nunca testa papel — testa permission key via `AccessDecisionService.can()`, que
+resolve para um scope do JWT (`access-layer-contracts.md`).
+
+| Permission key (FE) | Scope BE | Registrada em |
+|---|---|---|
+| `imp.import` | `imp:write` | `frontend/libs/imp/shell-entry/src/lib/imp.permission-map.ts` |
+| `imp.review` | `imp:read` | idem |
+| `imp.confirm` | `imp:write` | idem |
+| `comp.view` | `comp:read` | `frontend/libs/comp/data-access/src/lib/comp.constants.ts` |
+| `comp.edit` | `comp:write` | idem |
+| `pub.view` | `pub:read` | `frontend/libs/pub/shell-entry/src/lib/pub.contract.ts` |
+| `pub.export` | `pub:write` | idem |
+| `pub.download` | `pub:read` | idem |
+
+O módulo PROJ **não tem permission map no frontend** — não há registro de `beScope` em
+`frontend/libs/proj`. Gap conhecido (§7).
+
+---
+
+## 5. Contrato do JWT
+
+Implementação idêntica nos quatro serviços: `<service>/src/infrastructure/auth/jwt.strategy.ts`.
+
+### Validação do token
+
+| Parâmetro | Valor |
 |---|---|
-| `CRM_OPERADOR` | Opera funil/leads/pipeline; sem acesso a outros módulos | módulo CRM |
-| `LOGISTICA_OPERADOR` | Cria entregas, atualiza status de frete | módulo LOG |
-| `AUDITOR` | Read-only em toda a empresa; usado por contabilidade externa | Toda a empresa, somente leitura |
+| Algoritmo | `RS256` (fixo, sem fallback) |
+| Chaves | JWKS em `${JWT_ISSUER_URI}/protocol/openid-connect/certs`, com cache e rate limit (10 req/min) |
+| Issuer | `JWT_ISSUER_URI` — `getOrThrow`, o serviço **não sobe** sem ele |
+| Audience | `JWT_AUDIENCE`, **por serviço** |
+| Expiração | validada (`ignoreExpiration: false`) |
+
+Valores de audience em `.env.example` de cada serviço:
+
+| Serviço | `JWT_AUDIENCE` |
+|---|---|
+| `imp-service` | `imp-service` |
+| `comp-service` | `comp-service` |
+| `pub-service` | `pub-service` |
+| `proj-service` | `proj-service` |
+
+> ⚠️ O código tem um fallback `?? 'cordele'` quando `JWT_AUDIENCE` não está setado. Não
+> confie nele: sem a variável no ambiente, os quatro serviços passam a aceitar a mesma
+> audience genérica e o isolamento por serviço evapora. Sete `JWT_AUDIENCE` explicitamente
+> em todo ambiente.
+>
+> Consequência para o realm: o token precisa carregar **`aud` com o serviço-alvo**. Na
+> prática isso significa um client scope com *Audience mapper* por serviço, ou um token
+> por serviço. Um único token com `aud: cordele` só funciona se todos os serviços forem
+> configurados com esse valor — o que anula a separação. Decisão pendente (§7).
+
+### Claims consumidos
+
+| Claim | Tipo | Vira | Comportamento se ausente |
+|---|---|---|---|
+| `sub` | string | `user.userId` | **401** — `Token has no subject claim` |
+| `preferred_username` | string | `user.username` | cai para `email`, depois para `sub` |
+| `email` | string | `user.username` (fallback) | — |
+| `scope` | string separada por espaço | `user.scopes: string[]` | vira `[]` → todo handler com `@RequiredScopes` responde 403 |
+| `realm_access.roles` | string[] | `user.roles: string[]` | vira `[]` → sem `empresa-admin`, sem override de empresa |
+| `empresa_id` | string | `user.empresaId` | vira `''` → **403** `Token carries no empresa claim` no guard |
+
+### `empresa_id` é claim customizado
+
+Não é um claim padrão do OIDC. **Exige um protocol mapper no Keycloak** (User Attribute
+mapper: atributo `empresa_id` do usuário → claim `empresa_id`, com "Add to access token"
+ligado). Sem ele, o token é assinado e válido, passa na strategy — e **toda** requisição
+falha com 403 no guard. Este é o modo de falha mais provável ao montar o realm pela
+primeira vez.
+
+Note também que o `EmpresaContextMiddleware` (roda **antes** dos guards) faz um decode
+não-verificado do payload só para popular o `AsyncLocalStorage`; a validação de assinatura
+continua sendo do guard, que roda depois. Um token forjado não passa.
 
 ---
 
-## 2. Multi-empresa e papéis
+## 6. Multi-empresa e o papel do `empresa-admin`
 
-Cada usuário pode ter acesso a **N empresas** (associação `usuario_empresa`).
+O Cordelê é multi-**empresa** — unidades conhecidas do mesmo grupo econômico, não SaaS
+multi-tenant. Isolamento por schema no Postgres (ADR-001, `multi-empresa.md`):
+
+| Schema | Conteúdo |
+|---|---|
+| `cordele_global` | Usuários, RBAC, catálogos compartilhados |
+| `emp_aetos` | Operacional — Editora Aetós |
+
+**Hoje existe uma empresa.** O modelo suporta N, mas nada no repositório provisiona uma
+segunda.
+
+### Caminho do `empresa_id` até o `search_path`
 
 ```
-cordele_global.usuario_empresa (
-    usuario_id    UUID NOT NULL,
-    empresa_id    VARCHAR(50) NOT NULL,    -- ex.: <empresa-schema-1>
-    papel         VARCHAR(50) NOT NULL,    -- ADMIN, GERENTE, ...
-    ativo         BOOLEAN NOT NULL DEFAULT true,
-    PRIMARY KEY (usuario_id, empresa_id)
-)
+JWT.empresa_id
+  → JwtStrategy.validate()          → user.empresaId
+    → JwtAuthGuard.resolveTenant()  → aplica (ou rejeita) o override X-Tenant-Id
+      → EmpresaContext (AsyncLocalStorage / interceptor pós-auth)
+        → PrismaEmpresaService      → SET search_path = emp_<slug>
 ```
 
-No login:
-- Se usuário tem 1 empresa: usa essa automaticamente, JWT carrega `empresa_id`.
-- Se usuário tem N > 1: frontend mostra seletor; escolha persiste no JWT (`empresa_id` claim).
-- Troca de empresa em runtime via `POST /api/v1/iam/sessao/trocar-empresa` -- emite novo JWT.
+### Override de empresa — a única regra de papel em código
+
+`resolveTenant()`, presente nos quatro guards
+(`imp-service/src/infrastructure/auth/jwt-auth.guard.ts:131` e equivalentes em comp, pub e proj):
+
+```
+header X-Tenant-Id ausente, ou igual ao empresa_id do token → segue com o do token
+header X-Tenant-Id diferente + papel empresa-admin          → empresaId passa a ser o do header
+header X-Tenant-Id diferente + sem empresa-admin            → 403
+empresa_id vazio no token                                   → 403
+```
+
+`X-Tenant-Id` está no CORS `allowedHeaders` e documentado no Swagger dos quatro serviços.
+É um mecanismo de **override administrativo/suporte**, não o caminho normal do usuário:
+o caminho normal é o claim.
+
+> O frontend envia `X-Empresa-Id` em chamadas server-to-server do `proj-service` para os
+> demais serviços (adapters de read e de erasure). Nome de header **diferente** do
+> `X-Tenant-Id` lido pelos guards. Divergência a resolver (§7).
 
 ---
 
-## 3. Permissões -- formato
+## 7. Gap de autorização no `imp-service`
 
-Namespace: `<modulo>.<recurso>.<acao>`
+**Confirmado no código.** No `imp-service`, apenas os três GETs de leitura declaram
+`@RequiredScopes('imp:read')`. Os demais cinco handlers **não declaram scope algum** — e,
+como o guard faz no-op sem metadata, qualquer principal autenticado (qualquer token válido
+com `sub` e `empresa_id`, independentemente de papel ou de scope) executa escritas no IMP.
 
-Exemplos:
-- `cad.cliente.read` / `cad.cliente.write` / `cad.cliente.delete`
-- `com.orcamento.aprovar`
-- `com.venda.criar`
-- `fis.nfe.emitir` / `fis.nfe.cancelar`
-- `fin.caixa.abrir` / `fin.caixa.fechar`
-- `crm.lead.qualificar`
+Arquivo: `backend/services/imp-service/src/modules/imp/imp.controller.ts`.
 
-Cada módulo tem seu **permission-map** em `frontend/libs/<modulo>/access/src/lib/<modulo>.permission-map.ts`
-e o backend equivalente em `<modulo>-service` (constante em `domain.security`).
+| Linha | Handler | Scope hoje | Spec exige | Proposta |
+|---|---|---|---|---|
+| 55 | `POST manuscripts` (upload + parse) | **nenhum** | `imp:write` (api-contract §4.1) | `@RequiredScopes('imp:write')` |
+| 77 | `GET manuscripts/:id` | `imp:read` | `imp:read` | ok |
+| 93 | `GET manuscripts/:id/estrutura` | `imp:read` | `imp:read` | ok |
+| 108 | `GET projetos/:projetoId/manuscritos` | **nenhum** | `imp:read` (api-contract §4.4) | `@RequiredScopes('imp:read')` |
+| 122 | `POST manuscripts/:id/segmentos/:segId/ignore` | **nenhum** | — (addendum §8.1 não fecha scope) | `@RequiredScopes('imp:write')` |
+| 138 | `DELETE manuscripts/:id/segmentos/:segId/ignore` | **nenhum** | — (idem) | `@RequiredScopes('imp:write')` |
+| 155 | `GET manuscripts/:id/segmentos/ignored` | `imp:read` | `imp:read` (addendum §8.1) | ok |
+| 171 | `POST manuscripts/:id/confirm-estrutura` | **nenhum** | — (addendum §8.2 não fecha scope) | `@RequiredScopes('imp:write')` |
 
----
+Observações que reforçam que isto é **omissão, não decisão**:
 
-## 4. Tabelas principais (`cordele_global`)
+- O próprio JSDoc do decorator em `imp-service/src/infrastructure/auth/jwt-auth.guard.ts`
+  usa `@RequiredScopes('imp:write')` sobre `@Post('manuscripts')` como exemplo.
+- A issue IMP-017 pede explicitamente "scope enforcement (`imp:write` / `imp:read`)".
+- O `imp.permission-map.ts` do frontend já mapeia `imp.import` e `imp.confirm` para
+  `imp:write` — a UI se comporta como se o scope existisse.
+- Os outros três serviços não têm o problema: COMP e PUB têm `:write` em todas as escritas,
+  PROJ tem `:write` e `:delete`.
 
-### Core RBAC
+**Correção proposta (não aplicada — mudança de autorização exige aprovação explícita):**
 
-```sql
--- Papéis (sementes em V1 do cordele-migrations)
-CREATE TABLE cordele_global.papel (
-    papel_id      UUID PRIMARY KEY,
-    codigo        VARCHAR(50) UNIQUE NOT NULL,    -- ADMIN, GERENTE, ...
-    nome          VARCHAR(100) NOT NULL,
-    descricao     TEXT,
-    ativo         BOOLEAN NOT NULL DEFAULT true
-);
+1. Criar o scope `imp:write` no realm (client scope, com o mesmo *Audience mapper* de
+   `imp-service`).
+2. Anotar os cinco handlers conforme a coluna "Proposta" acima.
+3. Fechar em `api-contract.md` §8.1/§8.2 os scopes dos endpoints do addendum T04, que a
+   spec deixou em aberto.
+4. Distribuir `imp:write` conforme §4 (`empresa-admin` e `coordenadora-editorial`).
 
--- Permissões (sementes em V1)
-CREATE TABLE cordele_global.permissao (
-    permissao_id  UUID PRIMARY KEY,
-    codigo        VARCHAR(100) UNIQUE NOT NULL,   -- cad.cliente.read
-    modulo        VARCHAR(10)  NOT NULL,          -- CAD, COM, FIS, ...
-    nome          VARCHAR(150) NOT NULL,
-    descricao     TEXT
-);
-
--- Mapeamento papel ↔ permissão
-CREATE TABLE cordele_global.papel_permissao (
-    papel_id      UUID NOT NULL REFERENCES cordele_global.papel(papel_id),
-    permissao_id  UUID NOT NULL REFERENCES cordele_global.permissao(permissao_id),
-    PRIMARY KEY (papel_id, permissao_id)
-);
-
--- Usuários
-CREATE TABLE cordele_global.usuario (
-    usuario_id    UUID PRIMARY KEY,
-    email         VARCHAR(255) UNIQUE NOT NULL,
-    nome          VARCHAR(150) NOT NULL,
-    ativo         BOOLEAN NOT NULL DEFAULT true,
-    criado_em     TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- Associação usuário ↔ empresa (com papel)
-CREATE TABLE cordele_global.usuario_empresa (
-    usuario_id    UUID NOT NULL REFERENCES cordele_global.usuario(usuario_id),
-    empresa_id    VARCHAR(50) NOT NULL,           -- <empresa-schema-1>, <empresa-schema-2>, ...
-    papel         VARCHAR(50) NOT NULL,           -- codigo do papel
-    data_scope    VARCHAR(50),                    -- opcional: vendedor_id se papel = VENDEDOR
-    ativo         BOOLEAN NOT NULL DEFAULT true,
-    PRIMARY KEY (usuario_id, empresa_id)
-);
-```
-
-### Versão do modelo de acesso (para cache invalidation)
-
-```sql
-CREATE TABLE cordele_global.modelo_acesso_versao (
-    id            INT PRIMARY KEY DEFAULT 1,
-    versao        BIGINT NOT NULL DEFAULT 1,
-    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CHECK (id = 1)  -- singleton
-);
-```
-
-Quando RBAC muda (novo papel, nova permissão, alteração em `papel_permissao`),
-`UPDATE versao = versao + 1`. JWTs carregam `modelo_acesso_versao` claim;
-se o backend detecta JWT com versão antiga, retorna `401 SESSION_VERSION_STALE`
-e força refresh.
+**Risco de aplicar:** um token que hoje escreve no IMP sem `imp:write` passa a receber 403.
+Qualquer cliente ou script existente precisa do scope antes do deploy — a ordem correta é
+realm primeiro, código depois.
 
 ---
 
-## 5. AccessDecision -- formato de retorno
+## 8. O que ainda não existe
 
-```java
-// Retorno de POST /api/v1/iam/access/evaluate
-public record AccessDecisionResponse(
-    UUID usuarioId,
-    String empresaId,                    // <empresa-schema-1>, ...
-    String papel,                        // ADMIN, GERENTE, VENDEDOR, ...
-    List<String> permissoes,             // ["cad.cliente.read", "com.venda.criar"]
-    String dataScope,                    // opcional: vendedor_id se VENDEDOR
-    long modeloAcessoVersao,
-    SessionPolicy sessionPolicy          // { accessTokenTtl, refreshTtl, idleTimeout }
-) {}
-```
+Explicitamente **não implementado** no repositório. Nada abaixo deve ser tratado como
+comportamento disponível.
 
----
+| Item | Situação |
+|---|---|
+| Serviço de IAM / `iam-service` | **Não existe.** Não há `POST /api/v1/iam/sessao/login`, `.../trocar-empresa`, `.../restore`, `.../logout` nem `POST /api/v1/iam/access/evaluate` em lugar nenhum do código. A versão anterior deste documento os descrevia como existentes. |
+| Troca de empresa em runtime | **Não existe endpoint.** A empresa vem do claim; a única troca possível é o override `X-Tenant-Id` restrito a `empresa-admin` (§6). |
+| Tabelas RBAC (`papel`, `permissao`, `papel_permissao`, `usuario`, `usuario_empresa`) | **Não existem em nenhuma migration.** Nenhum `.sql` ou `.prisma` do repositório as cria. A autorização hoje é inteiramente Keycloak → claims do JWT. |
+| `modelo_acesso_versao` / erro `SESSION_VERSION_STALE` | **Não existe.** Nenhum serviço lê versão de modelo de acesso. |
+| Permissões `<modulo>.<recurso>.<acao>` | **Não existem no backend.** O vocabulário real são os 8 scopes da §2. Permission keys existem só no FE, e resolvem para scopes. |
+| Cache Redis de sessão / AccessDecision | **Não implementado.** |
+| Permission map do PROJ no frontend | **Não existe** (`frontend/libs/proj` não registra `beScope`). |
+| `X-Tenant-Id` vs `X-Empresa-Id` | **Divergência real:** guards leem `x-tenant-id`; adapters do `proj-service` enviam `X-Empresa-Id`. |
+| Segunda empresa | Modelo suporta; **nenhuma provisionada**. |
+| Segregação de papéis por etapa do pipeline | **Decisão pendente.** Implementável só com scopes, sem código novo. |
+| `proj:delete` para a coordenadora | **Decisão pendente** (§4). |
+| Formato do nome de role (`COORDENADORA_EDITORIAL` vs `coordenadora-editorial`) | **Decisão pendente** (§3). |
+| Audience por serviço vs. audience única | **Decisão pendente** (§5). |
 
-## 6. Implementação
-
-### <service>
-
-- Endpoints:
-  - `POST /api/v1/iam/sessao/login` -- OIDC callback do Keycloak; emite JWT.
-  - `POST /api/v1/iam/sessao/trocar-empresa` -- usuário com N empresas troca empresa ativa; novo JWT.
-  - `POST /api/v1/iam/access/evaluate` -- retorna `AccessDecisionResponse` (usado por gateway + serviços para cache).
-  - `GET /api/v1/iam/sessao/restore` -- restaura sessão a partir do JWT em cookie httpOnly.
-  - `POST /api/v1/iam/sessao/logout` -- invalida sessão (incrementa `modelo_acesso_versao` se preciso forçar).
-
-### Demais serviços
-
-- No filter de Security: lê JWT, popula `EmpresaContextHolder` com `empresa_id` claim.
-- Antes de cada `application.service` operacional: chama `EmpresaContextHolder.require()` (RULE-07).
-- Para checks de permissão:
-  ```java
-  @PreAuthorize("hasAuthority('cad.cliente.write')")
-  public ClienteResponse criar(CriarClienteRequest req) { ... }
-  ```
-  ou checagem programática:
-  ```java
-  if (!authoritiesContainsAny("cad.cliente.write", "cad.cliente.delete")) {
-      throw new ForbiddenException("missing.permission");
-  }
-  ```
+Os demais arquivos desta pasta (`papeis.md`, `permissoes.md`, `data-scope.md`,
+`enforcement.md`, `session-policy.md`, `approval-workflow.md`) ainda descrevem, em parte
+ou no todo, o modelo de ERP herdado do template — papéis de venda/fiscal/estoque, limites
+de aprovação, `data_scope` por vendedor. **Não use nenhum deles como fonte de verdade sem
+antes confrontar com o código.** Este arquivo é o único da pasta revisado contra a
+implementação.
 
 ---
 
-## 7. Redis cache (otimização)
+## 9. Erros a não cometer
 
-O Cordelê usa **Redis** (ou Valkey) para 3 casos de cache:
-
-### Session cache
-```
-Key:    cordele:sessao:{sessionId}
-Value:  {versao, usuarioId, empresaId, papel, expiresAt}
-TTL:    mesmo do access token (15 min default)
-```
-
-### AccessDecision cache
-```
-Key:    cordele:access:{usuarioId}:{empresaId}
-Value:  AccessDecisionResponse serializado
-TTL:    5 min (curto -- invalida via pub/sub)
-Invalidação: evento `cordele.modelo.acesso.alterado` publica em "cordele:access:invalidate"
-```
-
-### Rate limiting (gateway)
-```
-Key:    cordele:rate:{empresaId}:{windowTimestamp}
-Value:  contador atomico (INCR)
-TTL:    60s (janela de 1 minuto)
-```
-
-### Config sugerida (`application.yml`)
-
-```yaml
-spring:
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
-      timeout: 2000ms
-
-cordele:
-  cache:
-    sessao:
-      ttl: 15m
-      prefix: "cordele:sessao:"
-    access-decision:
-      ttl: 5m
-      prefix: "cordele:access:"
-  rate-limiting:
-    default-rate: 100
-    burst: 20
-    key-prefix: "cordele:rate:"
-```
-
-### Regra de ouro
-**Redis é otimização, não source of truth.** Se Redis cair, cada serviço vai direto no
-PostgreSQL (mais lento, mas funcional). O banco é a verdade.
-
----
-
-## 8. Erros comuns -- não fazer
-
-- **Nunca** armazene papéis no Keycloak como source of truth -- o **Cordelê** é dono.
-  Keycloak é só IdP (autenticação); autorização é do `<service>` Cordelê.
-- **Nunca** confie no papel do JWT sem validar `modeloAcessoVersao` (pode estar stale após mudança RBAC).
-- **Nunca** aplique permissão inline em UI Angular (`if (user.role === 'admin')`) -- sempre via `AccessDecisionService.can(<perm>)`.
-- **Nunca** crie usuário compartilhado (anti-pattern -- audit não rastreia indivíduo).
-- **Nunca** permita escalação de papel (usuário com papel X conseguindo criar associação com papel Y > X).
-- **Nunca** ignore `EmpresaContextHolder.require()` em application service que toca dado de empresa (RULE-07).
-- **Nunca** retorne dados de uma empresa para JWT de outra (cross-empresa leak) -- ver `hexagonal-patterns.md` §5.
-
----
-
-## 9. Roadmap (futuro, não implementar agora)
-
-Funcionalidades de RBAC mais avançadas (multi-SSO BYOI, custom roles por empresa, aprovação
-2-step, emergency access, API keys com risk score) **não são** parte do MVP. Adicionar
-somente quando houver demanda concreta de cliente/auditoria.
+- **Nunca** confie no fallback `JWT_AUDIENCE ?? 'cordele'` — sete a variável por serviço.
+- **Nunca** derive a empresa de path, query ou body. Só do claim (ou do override
+  `X-Tenant-Id` para `empresa-admin`).
+- **Nunca** teste papel diretamente no controller ou no componente Angular. No BE, use
+  `@RequiredScopes`; no FE, `AccessDecisionService.can(<permission-key>)`.
+- **Nunca** adicione um handler de escrita sem `@RequiredScopes` — o guard faz no-op sem
+  metadata e a rota fica aberta a qualquer autenticado (foi exatamente assim que o gap da
+  §7 nasceu).
+- **Nunca** responda 403 para recurso de outra empresa: a spec manda **404**, para não
+  permitir enumeração cross-tenant.
+- **Nunca** crie papel novo sem um scope que ele conceda e um fluxo que o use.
 
 ---
 
 ## Referências
 
-- `docs/architecture/shared/multi-empresa.md` -- ADR-001 schema-per-empresa
-- `docs/architecture/frontend/standards/access-layer-contracts.md` -- Access Layer FE
-- `hexagonal-patterns.md` §5 -- propagação EmpresaContext + cross-empresa guard
-- `services-catalog.md` §<service> -- responsabilidades do <service>
+- `docs/architecture/shared/multi-empresa.md` — ADR-001, schema-per-empresa
+- `docs/architecture/frontend/standards/access-layer-contracts.md` — Access Layer do FE
+- `docs/architecture/backend/services/imp-service/contracts/api-contract.md` §2, §4, §8
+- `docs/architecture/backend/services/imp-service/spec/backend/SPEC-06-security.md`
+- `docs/architecture/backend/services/comp-service/spec/backend/SPEC-06-security.md`
+- `docs/architecture/backend/issues/IMP-017.md`, `COMP-013.md`, `PROJ-014.md`
+- `arch/decisions/rbac.arch.json` — papéis canônicos declarados
+- Código: `backend/services/*/src/infrastructure/auth/{jwt.strategy.ts,jwt-auth.guard.ts}`
