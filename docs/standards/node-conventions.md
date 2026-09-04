@@ -300,6 +300,78 @@ export class ProblemDetailsFilter implements ExceptionFilter {
 - **E2E / API:** `supertest` against the bootstrapped Nest application.
 - See `node-testing-conventions.md` for the full pyramid, factories, and CI tasks.
 
+## Silent-degradation gates (SD rules)
+
+Two ESLint rules — enforced via `no-restricted-syntax` in every service's
+`eslint.config.mjs` — catch structural patterns where the system substitutes
+degraded behaviour for real behaviour while still reporting success.
+
+### RULE-SD-01: Forbidden silent config defaults
+
+```
+Pattern:  configService.get('KEY') ?? 'literal'
+          configService.get('KEY') || 'literal'
+Fix:      configService.getOrThrow('KEY')
+```
+
+Any env-var key that contains one of the following suffixes (case-insensitive) is
+considered **security-sensitive** and must never have a silent literal fallback:
+
+`_URL  _URI  _AUDIENCE  _SECRET  _KEY  _PASSWORD  _TOKEN  _HOST  _PORT`
+
+If the service starts with a wrong default the health check still passes; the defect
+surfaces only on the first real request.
+
+**Cosmetic keys** (e.g. `CORS_ORIGINS`, `LOG_LEVEL`, `APP_NAME`, own `PORT`) may
+keep a safe default, but must be annotated:
+
+```ts
+// eslint-disable-next-line no-restricted-syntax -- safe default: CORS_ORIGINS is not an external dependency; '*' is intentional for development
+const corsOrigins = config.get<string>('CORS_ORIGINS') ?? '*';
+```
+
+The gate fires on ALL `config.get + literal fallback` patterns; the developer must
+judge whether the key is security-sensitive and annotate or fix accordingly.
+
+### RULE-SD-02: Empty or comment-only catch blocks
+
+ESLint selector (ESLint 9.x, esquery): `CatchClause[body.body.length=0]`
+
+Note: `CatchClause > BlockStatement:not(:has(*))` is NOT used — `:has()` pseudo-class
+evaluation in esquery (used by ESLint 9.39.x) always returns false for
+`BlockStatement:not(:has(*))`, making the rule silently inert. The
+`[body.body.length=0]` attribute selector is the verified working alternative.
+
+```
+Pattern:  catch { }
+          catch (e) { }   // even with a comment inside (comments are not AST nodes)
+Fix:      log via the Nest logger, rethrow, or update a degraded-flag signal
+```
+
+A swallowed exception lets the happy-path code continue with a null or stub
+result; the `degraded` flag is never set; health checks pass; the defect only
+surfaces as silent wrong output.
+
+If silence is genuinely correct (SSR compatibility, best-effort cleanup), annotate:
+
+```ts
+// eslint-disable-next-line no-restricted-syntax -- SSR: window not available; silence is correct
+} catch {
+  // SSR or sandboxed iframe — window.addEventListener unavailable
+}
+```
+
+### Patterns NOT covered by lint
+
+The following defect classes are semantic or runtime facts and cannot be caught
+by a static AST rule.  They must be caught by code review and integration tests:
+
+- **Stub fallback without signalling**: a read-port resolves to a stub when an env
+  var is absent but never sets `degraded=true`.  The port's contract must require a
+  degraded-flag update on any fallback path.
+- **URL path mismatch**: an adapter is wired to the correct base URL but the wrong
+  path segment.  Integration tests against a real service are the only reliable gate.
+
 ## References
 
 - `node-hexagonal-patterns.md` — ports & adapters, NestJS Modules as bounded contexts
