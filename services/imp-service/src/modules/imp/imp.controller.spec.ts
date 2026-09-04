@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotImplementedException, RequestMethod } from '@nestjs/common';
+import { ForbiddenException, NotImplementedException, RequestMethod } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 
+import { JwtAuthGuard } from '../../infrastructure/auth/jwt-auth.guard';
+import { REQUIRED_SCOPES_KEY } from './decorators/require-scope.decorator';
 import { ImpController } from './imp.controller';
 import { ImpService } from './imp.service';
 import {
@@ -208,6 +211,132 @@ describe('ImpController — P1 route presence', () => {
           empresaId: 'aetos',
         }),
       ).rejects.toBeInstanceOf(NotImplementedException);
+    });
+  });
+
+  /**
+   * IMP-017 — Scope metadata verification.
+   *
+   * Verifica via Reflect.getMetadata que cada handler tem o scope correto
+   * declarado conforme api-contract.md.  A aplicação do guard (403 quando
+   * scope ausente) já é coberta em jwt-auth.guard.spec.ts; aqui garantimos
+   * que os handlers DECLARAM o scope certo.
+   */
+  describe('scope metadata — @RequiredScopes declarations (IMP-017)', () => {
+    const getScopes = (proto: object, methodName: string): string[] | undefined =>
+      Reflect.getMetadata(REQUIRED_SCOPES_KEY, (proto as Record<string, object>)[methodName]);
+
+    it('uploadManuscrito requires imp:write (api-contract §4.1)', () => {
+      const proto = Object.getPrototypeOf(controller) as object;
+      expect(getScopes(proto, 'uploadManuscrito')).toEqual(['imp:write']);
+    });
+
+    it('listManuscritosByProjeto requires imp:read (api-contract §4.4)', () => {
+      const proto = Object.getPrototypeOf(controller) as object;
+      expect(getScopes(proto, 'listManuscritosByProjeto')).toEqual(['imp:read']);
+    });
+
+    it('ignoreSegmento requires imp:write (api-contract §8 — mutação)', () => {
+      const proto = Object.getPrototypeOf(controller) as object;
+      expect(getScopes(proto, 'ignoreSegmento')).toEqual(['imp:write']);
+    });
+
+    it('restoreSegmento requires imp:write (api-contract §8 — deleção de anotação)', () => {
+      const proto = Object.getPrototypeOf(controller) as object;
+      expect(getScopes(proto, 'restoreSegmento')).toEqual(['imp:write']);
+    });
+
+    it('confirmEstrutura requires imp:write (api-contract §8.2)', () => {
+      const proto = Object.getPrototypeOf(controller) as object;
+      expect(getScopes(proto, 'confirmEstrutura')).toEqual(['imp:write']);
+    });
+
+    // Reads existentes — garantir que não regrediram
+    it('getManuscrito still requires imp:read', () => {
+      const proto = Object.getPrototypeOf(controller) as object;
+      expect(getScopes(proto, 'getManuscrito')).toEqual(['imp:read']);
+    });
+
+    it('getEstrutura still requires imp:read', () => {
+      const proto = Object.getPrototypeOf(controller) as object;
+      expect(getScopes(proto, 'getEstrutura')).toEqual(['imp:read']);
+    });
+
+    it('listSegmentosIgnorados still requires imp:read', () => {
+      const proto = Object.getPrototypeOf(controller) as object;
+      expect(getScopes(proto, 'listSegmentosIgnorados')).toEqual(['imp:read']);
+    });
+  });
+
+  /**
+   * IMP-017 — Casos negativos: guard lança ForbiddenException (403) quando
+   * o token não carrega o scope exigido pelo handler.
+   *
+   * Usa JwtAuthGuard diretamente com Reflector mockado para simular a
+   * resolução de metadata que o Nest faz em runtime.
+   */
+  describe('scope enforcement — negative cases (403) via JwtAuthGuard (IMP-017)', () => {
+
+    const makeUser = (scopes: string[]) => ({
+      userId: 'u1',
+      username: 'alice',
+      roles: [] as string[],
+      scopes,
+      empresaId: 'aetos',
+    });
+
+    const makeContext = (
+      user: ReturnType<typeof makeUser>,
+      requiredScopes: string[],
+    ) => {
+      const reflector = {
+        getAllAndOverride: jest.fn((key: string) => {
+          if (key === 'isPublic') return false;
+          if (key === REQUIRED_SCOPES_KEY) return requiredScopes;
+          return undefined;
+        }),
+      } as unknown as Reflector;
+
+      const guardInstance = new JwtAuthGuard(reflector);
+      // Stub Passport canActivate so we only test scope logic
+      jest
+        .spyOn(Object.getPrototypeOf(Object.getPrototypeOf(guardInstance)), 'canActivate')
+        .mockResolvedValue(true);
+
+      const ctx = {
+        getHandler: () => ({}),
+        getClass: () => ({}),
+        switchToHttp: () => ({
+          getRequest: () => ({ user, headers: {} }),
+        }),
+      } as unknown as import('@nestjs/common').ExecutionContext;
+
+      return { guardInstance, ctx };
+    };
+
+    it('token without imp:write → 403 on write endpoints', async () => {
+      const { guardInstance, ctx } = makeContext(makeUser(['imp:read']), ['imp:write']);
+      await expect(guardInstance.canActivate(ctx)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('token without imp:read → 403 on read endpoints', async () => {
+      const { guardInstance, ctx } = makeContext(makeUser([]), ['imp:read']);
+      await expect(guardInstance.canActivate(ctx)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('token with imp:write passes write endpoints', async () => {
+      const { guardInstance, ctx } = makeContext(makeUser(['imp:write']), ['imp:write']);
+      await expect(guardInstance.canActivate(ctx)).resolves.toBe(true);
+    });
+
+    it('token with imp:read passes read endpoints', async () => {
+      const { guardInstance, ctx } = makeContext(makeUser(['imp:read']), ['imp:read']);
+      await expect(guardInstance.canActivate(ctx)).resolves.toBe(true);
+    });
+
+    it('empty scopes token → 403 on any protected endpoint', async () => {
+      const { guardInstance, ctx } = makeContext(makeUser([]), ['imp:write']);
+      await expect(guardInstance.canActivate(ctx)).rejects.toThrow(ForbiddenException);
     });
   });
 });

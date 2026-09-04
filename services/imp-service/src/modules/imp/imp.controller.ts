@@ -51,8 +51,10 @@ export class ImpController {
   /**
    * POST /api/imp/manuscripts
    * Upload e parse síncrono de manuscrito (multipart/form-data — D-A / D-C).
+   * Requer scope `imp:write` (api-contract §4.1).
    */
   @Post('manuscripts')
+  @RequiredScopes('imp:write')
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload e parse síncrono de manuscrito' })
@@ -104,8 +106,10 @@ export class ImpController {
   /**
    * GET /api/imp/projetos/:projetoId/manuscritos
    * Lista de manuscritos de um projeto.
+   * Requer scope `imp:read` (api-contract §4.4).
    */
   @Get('projetos/:projetoId/manuscritos')
+  @RequiredScopes('imp:read')
   @ApiOperation({ summary: 'Listar manuscritos de um projeto' })
   @ApiOkResponse({ type: [ManuscritoDetailDto], description: 'Lista de manuscritos do projeto.' })
   listManuscritosByProjeto(
@@ -118,8 +122,10 @@ export class ImpController {
   /**
    * POST /api/imp/manuscripts/:id/segmentos/:segId/ignore
    * Ignorar um segmento de curadoria.
+   * Requer scope `imp:write` (api-contract §8, Port: imp:write — mutação de anotação).
    */
   @Post('manuscripts/:id/segmentos/:segId/ignore')
+  @RequiredScopes('imp:write')
   @ApiOperation({ summary: 'Ignorar segmento de curadoria' })
   @ApiOkResponse({ description: 'Segmento ignorado com sucesso.' })
   ignoreSegmento(
@@ -134,8 +140,10 @@ export class ImpController {
   /**
    * DELETE /api/imp/manuscripts/:id/segmentos/:segId/ignore
    * Restaurar (desfazer ignore) um segmento de curadoria.
+   * Requer scope `imp:write` (api-contract §8 — deleção de anotação é mutação).
    */
   @Delete('manuscripts/:id/segmentos/:segId/ignore')
+  @RequiredScopes('imp:write')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Restaurar segmento ignorado' })
   @ApiNoContentResponse({ description: 'Segmento restaurado (ignore desfeito).' })
@@ -167,8 +175,10 @@ export class ImpController {
    * POST /api/imp/manuscripts/:id/confirm-estrutura
    * Confirmar a estrutura de um manuscrito (avança o pipeline para Composição).
    * Retorna 200 OK (contrato api-contract.md §8.3) — não cria recurso novo, é um comando.
+   * Requer scope `imp:write` (api-contract §8.2, Port: imp:write — avanço de status).
    */
   @Post('manuscripts/:id/confirm-estrutura')
+  @RequiredScopes('imp:write')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirmar estrutura do manuscrito' })
   @ApiOkResponse({ description: 'Estrutura confirmada; manuscrito avançado para Composição.' })
