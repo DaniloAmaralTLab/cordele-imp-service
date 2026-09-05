@@ -150,6 +150,17 @@ const imutFakeManuscritoRepo: ManuscritoRepositoryPort = {
       }
     }
   },
+  findSummariesByProjetoIds: async (projetoIds: string[], _empresaId: string) => {
+    const seen = new Set<string>();
+    const result = [];
+    for (const ms of imutManuscritoStore.values()) {
+      if (projetoIds.includes(ms.projetoId) && !seen.has(ms.projetoId)) {
+        seen.add(ms.projetoId);
+        result.push({ projetoId: ms.projetoId, totalCapitulos: ms.estrutura?.chapters?.length ?? 0, totalImagens: 0 });
+      }
+    }
+    return result;
+  },
 };
 
 const imutFakeSegmentoCuradoriaRepo: SegmentoCuradoriaRepositoryPort = {

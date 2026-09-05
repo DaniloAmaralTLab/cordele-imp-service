@@ -4,11 +4,13 @@ import { ImpController } from './imp.controller';
 import { ImpService } from './imp.service';
 import { CascadeDeleteProjetoUseCase } from './use-cases/cascade-delete-projeto.use-case';
 import { ConfirmEstruturaUseCase } from './use-cases/confirm-estrutura.use-case';
+import { GetManuscritoSummariesUseCase } from './use-cases/get-manuscrito-summaries.use-case';
 import { IgnoreSegmentUseCase } from './use-cases/ignore-segment.use-case';
 import { ImportManuscriptUseCase } from './use-cases/import-manuscript.use-case';
 import {
   CASCADE_DELETE_PROJETO_USE_CASE,
   CONFIRM_ESTRUTURA_USE_CASE,
+  GET_MANUSCRITO_SUMMARIES_USE_CASE,
   IGNORE_SEGMENT_USE_CASE,
   IMPORT_MANUSCRIPT_USE_CASE,
 } from './imp.tokens';
@@ -16,6 +18,7 @@ import {
 // Re-export para retrocompatibilidade com código que importe os tokens daqui.
 export {
   CASCADE_DELETE_PROJETO_USE_CASE,
+  GET_MANUSCRITO_SUMMARIES_USE_CASE,
   IMPORT_MANUSCRIPT_USE_CASE,
   IGNORE_SEGMENT_USE_CASE,
   CONFIRM_ESTRUTURA_USE_CASE,
@@ -45,6 +48,9 @@ export {
     // P7: cascade delete triggered by ProjetoDeleted event from PROJ context.
     CascadeDeleteProjetoUseCase,
     { provide: CASCADE_DELETE_PROJETO_USE_CASE, useClass: CascadeDeleteProjetoUseCase },
+    // Batch summary endpoint — consumed by proj-service to populate library cards.
+    GetManuscritoSummariesUseCase,
+    { provide: GET_MANUSCRITO_SUMMARIES_USE_CASE, useClass: GetManuscritoSummariesUseCase },
     ImpService,
   ],
   exports: [ImpService],

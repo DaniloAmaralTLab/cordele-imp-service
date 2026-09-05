@@ -51,6 +51,7 @@ describe('IgnoreSegmentUseCase', () => {
       findById: jest.fn(),
       findByProjetoId: jest.fn(),
       deleteByProjetoId: jest.fn(),
+      findSummariesByProjetoIds: jest.fn().mockResolvedValue([]),
     };
     segmentoCuradoriaRepo = {
       save: jest.fn(),

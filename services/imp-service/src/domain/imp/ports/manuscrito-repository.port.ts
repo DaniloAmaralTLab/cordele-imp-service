@@ -1,6 +1,17 @@
 import type { Manuscrito } from '../manuscrito.entity';
 
 /**
+ * Resultado de sumário por projeto (para o endpoint de lote do proj-service).
+ *
+ * Tipo puro de domínio — sem decoradores Nest nem imports Prisma (RULE-01/02).
+ */
+export interface ManuscritoSummaryRecord {
+  projetoId: string;
+  totalCapitulos: number;
+  totalImagens: number;
+}
+
+/**
  * Port de repositório para o agregado Manuscrito.
  *
  * Interface pura de domínio; sem decoradores Nest nem imports Prisma (RULE-01/02).
@@ -31,6 +42,15 @@ export interface ManuscritoRepositoryPort {
    * via FileStoragePort.
    */
   deleteByProjetoId(projetoId: string, empresaId: string): Promise<void>;
+
+  /**
+   * Retorna o sumário do manuscrito mais recente de cada projetoId solicitado.
+   * Projetos sem manuscrito são omitidos do resultado.
+   *
+   * Query em lote — um único findMany com `projetoId: { in: projetoIds }`.
+   * Consumido pelo proj-service via `POST /api/imp/manuscripts/summaries`.
+   */
+  findSummariesByProjetoIds(projetoIds: string[], empresaId: string): Promise<ManuscritoSummaryRecord[]>;
 }
 
 /** Token de DI para o repositório de Manuscrito. */

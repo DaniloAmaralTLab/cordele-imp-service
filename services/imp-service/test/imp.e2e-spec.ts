@@ -119,6 +119,17 @@ const fakeManuscritoRepo: ManuscritoRepositoryPort = {
       .map(([key]) => key);
     keysToDelete.forEach((key) => manuscritoStore.delete(key));
   },
+  findSummariesByProjetoIds: async (projetoIds: string[], _empresaId: string) => {
+    const seen = new Set<string>();
+    const result = [];
+    for (const ms of manuscritoStore.values()) {
+      if (projetoIds.includes(ms.projetoId) && !seen.has(ms.projetoId)) {
+        seen.add(ms.projetoId);
+        result.push({ projetoId: ms.projetoId, totalCapitulos: ms.estrutura?.chapters?.length ?? 0, totalImagens: 0 });
+      }
+    }
+    return result;
+  },
 };
 
 const segmentoCuradoriaStore = new Map<string, SegmentoCuradoria>();

@@ -60,8 +60,14 @@ export interface ImportManuscriptCommand {
 /**
  * Use case: ImportManuscriptUseCase (IMP-004 + IMP-005 + IMP-006 + D-A + D-C).
  *
- * Orquestra: validação de tamanho → validação de formato → project binding →
- * parse → armazenamento → criação do agregado → persistência → emissão de evento.
+ * Orquestra: validação → parse → project binding (resolve/create) → armazenamento →
+ * persistência → emissão de evento.
+ *
+ * O parse é executado ANTES da criação do projeto (projetoTitulo path) para evitar
+ * que projetos fiquem órfãos no PROJ quando o documento é malformado. Se o parse
+ * falhar, o projeto nunca é criado. Se o save falhar após a criação do projeto, o
+ * erro é logado com contexto completo para reconciliação manual (a role coordenadora
+ * não tem proj:delete, então tentar deletar o projeto retornaria 403).
  *
  * Validações EARS:
  * - IF file > 50 MB → ArquivoGrandeDemaisError (413)
@@ -119,45 +125,15 @@ export class ImportManuscriptUseCase {
       throw new ProjectBindingInvalidError('both');
     }
 
-    // ── 4. Resolução do projetoId ─────────────────────────────────────────────
-    let resolvedProjetoId: string;
+    // ── 4. Pré-alocar manuscritoId ─────────────────────────────────────────────
+    const manuscritoId = randomUUID();
 
-    if (projetoId) {
-      // Valida que o projeto existe na empresa ativa (422 se não existir).
-      const found = await this.findProjeto.findById(projetoId, empresaId, bearerToken);
-      if (!found) {
-        throw new ProjetoNaoEncontradoError(projetoId);
-      }
-      resolvedProjetoId = found.projetoId;
-    } else {
-      // projetoTitulo: cria o projeto via PROJ port antes do parse.
-      const manuscritoId = randomUUID();
-      const created = await this.createProjeto.create({
-        manuscritoId,
-        titulo: projetoTitulo!,
-        empresaId,
-        bearerToken,
-      });
-      resolvedProjetoId = created.projetoId;
-      // Continuar com o manuscritoId pré-alocado para manter a consistência.
-      return this.runImport(command, resolvedMime, resolvedProjetoId, manuscritoId);
-    }
-
-    return this.runImport(command, resolvedMime, resolvedProjetoId);
-  }
-
-  private async runImport(
-    command: ImportManuscriptCommand,
-    mimeType: string,
-    projetoId: string,
-    preallocatedId?: string,
-  ): Promise<ManuscritoDetailDto> {
-    const { filename, fileBuffer, empresaId } = command;
-
-    // ── 5. Parse do conteúdo ──────────────────────────────────────────────────
+    // ── 5. Parse do conteúdo — ANTES da criação do projeto ───────────────────
+    // Motivo: se o documento for malformado, o projeto nunca é criado, evitando
+    // projetos órfãos no PROJ (o caso mais comum de inconsistência).
     let estrutura;
     try {
-      estrutura = await this.parser.parse(fileBuffer, mimeType);
+      estrutura = await this.parser.parse(fileBuffer, resolvedMime);
     } catch (err) {
       const reason = err instanceof ManuscriptParseError ? err.reason : String(err);
       await this.eventBus.publish(
@@ -168,38 +144,79 @@ export class ImportManuscriptUseCase {
       throw new ManuscriptParseError(String(err), err);
     }
 
-    // ── 6. Armazenamento do arquivo (RULE-07: empresaId requerido) ────────────
-    const manuscritoId = preallocatedId ?? randomUUID();
+    // ── 6. Resolução do projetoId ─────────────────────────────────────────────
+    let resolvedProjetoId: string;
+
+    if (projetoId) {
+      // Valida que o projeto existe na empresa ativa (422 se não existir).
+      const found = await this.findProjeto.findById(projetoId, empresaId, bearerToken);
+      if (!found) {
+        throw new ProjetoNaoEncontradoError(projetoId);
+      }
+      resolvedProjetoId = found.projetoId;
+    } else {
+      // projetoTitulo: cria o projeto via PROJ port — parse já foi bem-sucedido.
+      const created = await this.createProjeto.create({
+        manuscritoId,
+        titulo: projetoTitulo!,
+        empresaId,
+        bearerToken,
+      });
+      resolvedProjetoId = created.projetoId;
+    }
+
+    // ── 7. Armazenamento do arquivo (RULE-07: empresaId requerido) ────────────
     const storageKey = await this.fileStorage.store(
       fileBuffer,
       filename,
-      mimeType,
+      resolvedMime,
       empresaId,
       manuscritoId,
     );
 
-    // ── 7. Criação do agregado Manuscrito ─────────────────────────────────────
+    // ── 8. Criação do agregado Manuscrito ─────────────────────────────────────
     const manuscrito = Manuscrito.create({
       id: manuscritoId,
-      projetoId,
+      projetoId: resolvedProjetoId,
       empresaId,
       filename,
-      mimeType: mimeType as ManuscritoMimeType,
+      mimeType: resolvedMime as ManuscritoMimeType,
       storageKey,
       estrutura,
       tamanhoBytes: BigInt(fileBuffer.length),
     });
 
-    // ── 8. Persistência (RULE-07: empresaId explícito) ────────────────────────
-    const saved = await this.manuscritoRepo.save(manuscrito, empresaId);
+    // ── 9. Persistência (RULE-07: empresaId explícito) ────────────────────────
+    let saved: Manuscrito;
+    try {
+      saved = await this.manuscritoRepo.save(manuscrito, empresaId);
+    } catch (err) {
+      // Compensação: o projeto pode ter sido criado no PROJ mas o manuscrito
+      // não foi persistido. A role coordenadora não tem proj:delete (retornaria
+      // 403), então logamos com contexto completo para reconciliação manual.
+      if (projetoTitulo) {
+        this.logger.error(
+          `[COMPENSACAO-NECESSARIA] Falha ao persistir manuscrito apos criacao do projeto. ` +
+          `projetoId=${resolvedProjetoId} manuscritoId=${manuscritoId} empresa=${empresaId} ` +
+          `filename=${filename}. Projeto criado no PROJ pode estar orfao. Reconciliacao manual necessaria.`,
+          err as Error,
+        );
+      } else {
+        this.logger.error(
+          `Falha ao persistir manuscrito. manuscritoId=${manuscritoId} projetoId=${resolvedProjetoId} empresa=${empresaId}`,
+          err as Error,
+        );
+      }
+      throw err;
+    }
 
-    // ── 9. Emissão de evento de domínio (IMP-INT-003) ─────────────────────────
+    // ── 10. Emissão de evento de domínio (IMP-INT-003) ────────────────────────
     await this.eventBus.publish(
-      new ManuscriptImportedEvent(saved.id, projetoId, empresaId, filename),
+      new ManuscriptImportedEvent(saved.id, resolvedProjetoId, empresaId, filename),
     );
 
     this.logger.log(
-      `Manuscrito '${saved.id}' importado — empresa=${empresaId} projeto=${projetoId}`,
+      `Manuscrito '${saved.id}' importado — empresa=${empresaId} projeto=${resolvedProjetoId}`,
     );
 
     return this.toDto(saved);

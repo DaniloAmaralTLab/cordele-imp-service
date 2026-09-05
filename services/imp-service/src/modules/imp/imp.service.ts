@@ -19,13 +19,16 @@ import { EstruturaDto } from './dto/estrutura.dto';
 import type { IgnoreSegmentoDto } from './dto/ignore-segmento.dto';
 import { IgnoredSegmentsDto } from './dto/ignored-segments.dto';
 import { ManuscritoDetailDto } from './dto/manuscrito-detail.dto';
+import { ManuscritoSummaryItemDto } from './dto/manuscrito-summary-item.dto';
 import type { UploadManuscritoDto } from './dto/upload-manuscrito.dto';
 import {
   CONFIRM_ESTRUTURA_USE_CASE,
+  GET_MANUSCRITO_SUMMARIES_USE_CASE,
   IGNORE_SEGMENT_USE_CASE,
   IMPORT_MANUSCRIPT_USE_CASE,
 } from './imp.tokens';
 import type { ConfirmEstruturaUseCase } from './use-cases/confirm-estrutura.use-case';
+import type { GetManuscritoSummariesUseCase } from './use-cases/get-manuscrito-summaries.use-case';
 import type { IgnoreSegmentUseCase } from './use-cases/ignore-segment.use-case';
 import type { ImportManuscriptUseCase } from './use-cases/import-manuscript.use-case';
 
@@ -50,6 +53,9 @@ export class ImpService {
 
     @Inject(CONFIRM_ESTRUTURA_USE_CASE)
     private readonly confirmEstruturaUseCase: ConfirmEstruturaUseCase,
+
+    @Inject(GET_MANUSCRITO_SUMMARIES_USE_CASE)
+    private readonly getManuscritoSummariesUseCase: GetManuscritoSummariesUseCase,
 
     @Inject(MANUSCRITO_REPOSITORY_PORT)
     private readonly manuscritoRepo: ManuscritoRepositoryPort,
@@ -208,6 +214,26 @@ export class ImpService {
       }
       throw err;
     }
+  }
+
+  async getManuscritoSummaries(
+    projetoIds: string[],
+    user: AuthenticatedUser,
+  ): Promise<ManuscritoSummaryItemDto[]> {
+    this.logger.log(
+      `getManuscritoSummaries — n=${projetoIds.length} empresa=${user.empresaId}`,
+    );
+    const records = await this.getManuscritoSummariesUseCase.execute({
+      projetoIds,
+      empresaId: user.empresaId,
+    });
+    return records.map((r) => {
+      const dto = new ManuscritoSummaryItemDto();
+      dto.projetoId = r.projetoId;
+      dto.totalCapitulos = r.totalCapitulos;
+      dto.totalImagens = r.totalImagens;
+      return dto;
+    });
   }
 
   private toDetailDto(ms: Manuscrito): ManuscritoDetailDto {

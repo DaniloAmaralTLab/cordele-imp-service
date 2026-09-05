@@ -16,3 +16,6 @@ export const CONFIRM_ESTRUTURA_USE_CASE = 'CONFIRM_ESTRUTURA_USE_CASE';
 
 /** Token de DI para o use case de cascade delete de projeto. */
 export const CASCADE_DELETE_PROJETO_USE_CASE = 'CASCADE_DELETE_PROJETO_USE_CASE';
+
+/** Token de DI para o use case de consulta em lote de sumários de manuscrito por projeto. */
+export const GET_MANUSCRITO_SUMMARIES_USE_CASE = 'GET_MANUSCRITO_SUMMARIES_USE_CASE';

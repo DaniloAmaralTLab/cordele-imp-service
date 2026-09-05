@@ -81,6 +81,7 @@ describe('ImportManuscriptUseCase', () => {
       findById: jest.fn(),
       findByProjetoId: jest.fn(),
       deleteByProjetoId: jest.fn(),
+      findSummariesByProjetoIds: jest.fn().mockResolvedValue([]),
     };
     createProjeto = {
       create: jest.fn(),
@@ -228,6 +229,85 @@ describe('ImportManuscriptUseCase', () => {
         expect.objectContaining({ eventName: 'ManuscriptImportRejected' }),
       );
       expect(manuscritoRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should NOT call createProjeto when parser fails (projetoTitulo path)', async () => {
+      // Parse happens BEFORE project creation — if parse fails, no orphan project is created.
+      parser.parse.mockRejectedValue(new ManuscriptParseError('malformed', undefined));
+      eventBus.publish.mockResolvedValue(undefined);
+
+      await expect(
+        useCase.execute({ ...baseCommand, projetoId: undefined, projetoTitulo: 'Livro Novo', filename: 'novo.docx' }),
+      ).rejects.toThrow(ManuscriptParseError);
+
+      expect(createProjeto.create).not.toHaveBeenCalled();
+      expect(manuscritoRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── compensação: save falha após criação de projeto ─────────────────────────
+
+  describe('save failure after project creation (compensação)', () => {
+    it('should log [COMPENSACAO-NECESSARIA] and rethrow when save fails on projetoTitulo path', async () => {
+      const saveError = new Error('DB connection lost');
+      const tree = makeContentTree();
+
+      parser.parse.mockResolvedValue(tree);
+      fileStorage.store.mockResolvedValue('key');
+      createProjeto.create.mockResolvedValue({ projetoId: 'new-proj-id' });
+      manuscritoRepo.save.mockRejectedValue(saveError);
+      eventBus.publish.mockResolvedValue(undefined);
+
+      // Spy on the logger error method via NestJS Logger prototype
+      const loggerErrorSpy = jest.spyOn(
+        (useCase as unknown as { logger: { error: (...args: unknown[]) => void } }).logger,
+        'error',
+      );
+
+      await expect(
+        useCase.execute({
+          ...baseCommand,
+          projetoId: undefined,
+          projetoTitulo: 'Livro Orfao',
+          filename: 'orfao.docx',
+        }),
+      ).rejects.toThrow(saveError);
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[COMPENSACAO-NECESSARIA]'),
+        saveError,
+      );
+
+      loggerErrorSpy.mockRestore();
+    });
+
+    it('should log plain error and rethrow when save fails on projetoId path', async () => {
+      const saveError = new Error('constraint violation');
+      const tree = makeContentTree();
+
+      findProjeto.findById.mockResolvedValue({ projetoId: 'proj-001' });
+      parser.parse.mockResolvedValue(tree);
+      fileStorage.store.mockResolvedValue('key');
+      manuscritoRepo.save.mockRejectedValue(saveError);
+      eventBus.publish.mockResolvedValue(undefined);
+
+      const loggerErrorSpy = jest.spyOn(
+        (useCase as unknown as { logger: { error: (...args: unknown[]) => void } }).logger,
+        'error',
+      );
+
+      await expect(useCase.execute(baseCommand)).rejects.toThrow(saveError);
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Falha ao persistir manuscrito'),
+        saveError,
+      );
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.not.stringContaining('[COMPENSACAO-NECESSARIA]'),
+        saveError,
+      );
+
+      loggerErrorSpy.mockRestore();
     });
   });
 

@@ -8,6 +8,7 @@ import { ImpController } from './imp.controller';
 import { ImpService } from './imp.service';
 import {
   CONFIRM_ESTRUTURA_USE_CASE,
+  GET_MANUSCRITO_SUMMARIES_USE_CASE,
   IGNORE_SEGMENT_USE_CASE,
   IMPORT_MANUSCRIPT_USE_CASE,
 } from './imp.tokens';
@@ -52,11 +53,18 @@ describe('ImpController — P1 route presence', () => {
           },
         },
         {
+          provide: GET_MANUSCRITO_SUMMARIES_USE_CASE,
+          useValue: {
+            execute: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
           provide: MANUSCRITO_REPOSITORY_PORT,
           useValue: {
             save: jest.fn(),
             findById: jest.fn().mockResolvedValue(null),
             findByProjetoId: jest.fn().mockResolvedValue([]),
+            findSummariesByProjetoIds: jest.fn().mockResolvedValue([]),
           },
         },
       ],
@@ -176,6 +184,14 @@ describe('ImpController — P1 route presence', () => {
       );
       expect(found).toBe(true);
     });
+
+    it('should have POST manuscripts/summaries route', () => {
+      const routes = getRoutes(controller);
+      const found = routes.some(
+        (r) => r.method === 'POST' && r.path === 'manuscripts/summaries',
+      );
+      expect(found).toBe(true);
+    });
   });
 
   describe('service stub methods throw NotImplementedException in P1', () => {
@@ -266,6 +282,11 @@ describe('ImpController — P1 route presence', () => {
       const proto = Object.getPrototypeOf(controller) as object;
       expect(getScopes(proto, 'listSegmentosIgnorados')).toEqual(['imp:read']);
     });
+
+    it('getSummaries requires imp:read (api-contract §9)', () => {
+      const proto = Object.getPrototypeOf(controller) as object;
+      expect(getScopes(proto, 'getSummaries')).toEqual(['imp:read']);
+    });
   });
 
   /**
@@ -337,6 +358,30 @@ describe('ImpController — P1 route presence', () => {
     it('empty scopes token → 403 on any protected endpoint', async () => {
       const { guardInstance, ctx } = makeContext(makeUser([]), ['imp:write']);
       await expect(guardInstance.canActivate(ctx)).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  /**
+   * getSummaries — functional tests (IMP-INT batch query).
+   */
+  describe('getSummaries — functional (IMP-INT batch query)', () => {
+    it('returns empty array for empty projetoIds', async () => {
+      jest.spyOn(module!.get<ImpService>(ImpService), 'getManuscritoSummaries').mockResolvedValue([]);
+      const result = await controller.getSummaries(
+        { projetoIds: [] } as any,
+        { empresaId: 'aetos' } as any,
+      );
+      expect(result).toEqual([]);
+    });
+
+    it('returns summaries for known projetoIds', async () => {
+      const mockResult = [{ projetoId: 'proj-1', totalCapitulos: 5, totalImagens: 2 }];
+      jest.spyOn(module!.get<ImpService>(ImpService), 'getManuscritoSummaries').mockResolvedValue(mockResult as any);
+      const result = await controller.getSummaries(
+        { projetoIds: ['proj-1'] } as any,
+        { empresaId: 'aetos' } as any,
+      );
+      expect(result).toEqual(mockResult);
     });
   });
 });

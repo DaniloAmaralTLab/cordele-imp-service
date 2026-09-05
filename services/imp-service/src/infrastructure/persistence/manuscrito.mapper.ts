@@ -17,7 +17,7 @@ export class ManuscritoMapper {
    * Converte o agregado de domínio para os campos necessários ao `prisma.manuscrito.create()`.
    *
    * Notas de mapeamento:
-   * - `empresaId` é roteado via `SET LOCAL search_path` (schema-per-tenant), não é coluna.
+   * - `empresaId` determina o schema via `datasourceUrl` (`?schema=emp_<slug>`), não é coluna.
    * - `tamanhoBytes`: DB constraint exige > 0. Valor real fornecido pelo FileStorage (P4).
    * - `status`: MVP usa 'imported' como estado terminal pós-importação.
    * - `totalCapitulos/Imagens/trechosNaoParseados`: derivados da ContentTree.

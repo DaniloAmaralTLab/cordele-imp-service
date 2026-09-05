@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import type { Manuscrito } from '../../domain/imp/manuscrito.entity';
-import type { ManuscritoRepositoryPort } from '../../domain/imp/ports/manuscrito-repository.port';
+import type { ManuscritoRepositoryPort, ManuscritoSummaryRecord } from '../../domain/imp/ports/manuscrito-repository.port';
 import { ManuscritoMapper } from './manuscrito.mapper';
 import { TenantPrismaFactory } from './tenant-prisma.factory';
 
@@ -14,8 +14,8 @@ import { TenantPrismaFactory } from './tenant-prisma.factory';
  * RULE-07: `empresaId` é requerido em todos os métodos para isolamento multi-empresa.
  * INSERT-only: `save()` jamais chama `update()` ou `upsert()` (imutabilidade do agregado).
  *
- * O `TenantPrismaFactory.withTenant()` executa `SET LOCAL search_path TO emp_{slug}`
- * dentro da transação, garantindo isolamento entre tenants concorrentes.
+ * O `TenantPrismaFactory.withTenant()` cria um `PrismaClient` com `datasourceUrl`
+ * própria (`?schema=emp_<slug>`), garantindo isolamento real entre tenants (D-619).
  */
 @Injectable()
 export class PrismaManuscritoRepository implements ManuscritoRepositoryPort {
@@ -92,5 +92,47 @@ export class PrismaManuscritoRepository implements ManuscritoRepositoryPort {
     this.logger.log(
       `All manuscripts for projetoId=${projetoId} deleted successfully`,
     );
+  }
+
+  /**
+   * Retorna o sumário do manuscrito mais recente de cada projetoId solicitado.
+   *
+   * Query em lote (um único findMany) — projetos sem manuscrito são omitidos.
+   * A desduplicação por projetoId (pick mais recente) é feita em memória após
+   * o orderBy criadoEm desc, sem subquery.
+   */
+  async findSummariesByProjetoIds(
+    projetoIds: string[],
+    empresaId: string,
+  ): Promise<ManuscritoSummaryRecord[]> {
+    if (projetoIds.length === 0) return [];
+
+    const rows = await this.tenantFactory.withTenant(empresaId, async (tx) => {
+      return tx.manuscrito.findMany({
+        where: { projetoId: { in: projetoIds } },
+        orderBy: { criadoEm: 'desc' },
+        select: {
+          projetoId: true,
+          totalCapitulos: true,
+          totalImagens: true,
+          criadoEm: true,
+        },
+      });
+    });
+
+    // Pick the most recent manuscript per project (rows are already desc by criadoEm)
+    const seen = new Set<string>();
+    const result: ManuscritoSummaryRecord[] = [];
+    for (const row of rows) {
+      if (!seen.has(row.projetoId)) {
+        seen.add(row.projetoId);
+        result.push({
+          projetoId: row.projetoId,
+          totalCapitulos: row.totalCapitulos,
+          totalImagens: row.totalImagens,
+        });
+      }
+    }
+    return result;
   }
 }

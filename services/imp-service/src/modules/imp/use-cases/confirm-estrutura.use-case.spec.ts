@@ -50,6 +50,7 @@ describe('ConfirmEstruturaUseCase', () => {
       findById: jest.fn(),
       findByProjetoId: jest.fn(),
       deleteByProjetoId: jest.fn(),
+      findSummariesByProjetoIds: jest.fn().mockResolvedValue([]),
     };
     advanceProjeto = {
       advance: jest.fn(),

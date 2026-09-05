@@ -31,6 +31,8 @@ import { EstruturaDto } from './dto/estrutura.dto';
 import { IgnoreSegmentoDto } from './dto/ignore-segmento.dto';
 import { IgnoredSegmentsDto } from './dto/ignored-segments.dto';
 import { ManuscritoDetailDto } from './dto/manuscrito-detail.dto';
+import { ManuscritoSummariesRequestDto } from './dto/manuscrito-summaries-request.dto';
+import { ManuscritoSummaryItemDto } from './dto/manuscrito-summary-item.dto';
 import { UploadManuscritoDto } from './dto/upload-manuscrito.dto';
 import { ImpService } from './imp.service';
 
@@ -69,6 +71,33 @@ export class ImpController {
       throw new BadRequestException('O campo "file" (arquivo) é obrigatório.');
     }
     return this.impService.importManuscrito(dto, user, file, authorization);
+  }
+
+  /**
+   * POST /api/imp/manuscripts/summaries
+   * Consulta em lote: sumário de manuscrito por projetoId (interno — proj-service).
+   *
+   * Retorna o sumário (totalCapitulos + totalImagens) do manuscrito mais recente
+   * de cada projetoId solicitado. Projetos sem manuscrito são omitidos do array.
+   *
+   * Deve estar declarado ANTES de `GET manuscripts/:id` para evitar ambiguidade
+   * de rota — "summaries" como literal vs ":id" como parâmetro.
+   *
+   * Requer scope `imp:read` (api-contract §9).
+   */
+  @Post('manuscripts/summaries')
+  @RequiredScopes('imp:read')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Consulta em lote: sumário de manuscrito por projetoId (interno — proj-service)' })
+  @ApiOkResponse({
+    type: [ManuscritoSummaryItemDto],
+    description: 'Sumários dos manuscritos mais recentes por projeto. Projetos sem manuscrito são omitidos.',
+  })
+  getSummaries(
+    @Body() dto: ManuscritoSummariesRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ManuscritoSummaryItemDto[]> {
+    return this.impService.getManuscritoSummaries(dto.projetoIds, user);
   }
 
   /**
