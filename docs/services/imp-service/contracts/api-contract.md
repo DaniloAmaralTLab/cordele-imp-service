@@ -455,3 +455,66 @@ EARS:
 |---|---|---|
 | `urn:cordele:imp:segmento-not-found` | 422 | segmentoId absent from manuscrito.estrutura |
 | `urn:cordele:imp:status-advance-failed` | 422 | PROJ port rejected the status advance |
+
+---
+
+## §9 — Endpoint interno de lote: sumário de manuscritos por projeto
+
+### Path
+
+`POST /api/imp/manuscripts/summaries`
+
+> Full URL with global prefix: `POST /api/v1/imp/manuscripts/summaries`
+
+### Autenticação e autorização
+
+- **Auth:** Bearer JWT (global APP_GUARD).
+- **Scope:** `imp:read` — leitura de dados de manuscrito.
+- **Multi-empresa:** `empresaId` extraído de `@CurrentUser() user: AuthenticatedUser`; NUNCA hardcoded.
+
+### Request body
+
+```json
+{ "projetoIds": ["uuid1", "uuid2", "..."] }
+```
+
+| Campo | Tipo | Restrições |
+|---|---|---|
+| `projetoIds` | `string[]` | UUIDs v4; máx **50** itens; obrigatório |
+
+> **Limite de lote:** máximo 50 IDs por requisição (padrão cross-módulo). Enviar 51+ retorna
+> `400 Bad Request` com `type: urn:cordele:imp:validation`. O consumidor (proj-service) deve
+> fatiar listas maiores em blocos de até 50.
+
+### Response — 200 OK
+
+Array de itens (projetos sem manuscrito são **omitidos** — ausência no array significa "sem manuscrito", diferente de zeros):
+
+```json
+[
+  { "projetoId": "uuid", "totalCapitulos": 12, "totalImagens": 34 }
+]
+```
+
+| Campo | Tipo | Semântica |
+|---|---|---|
+| `projetoId` | `string` | ID do projeto |
+| `totalCapitulos` | `number` | Campo persistido `total_capitulos` do manuscrito mais recente |
+| `totalImagens` | `number` | Campo persistido `total_imagens` do manuscrito mais recente |
+
+### Semântica de "mais recente"
+
+Quando um projeto possui múltiplos manuscritos, o endpoint retorna os campos
+`totalCapitulos` e `totalImagens` do manuscrito com maior `criadoEm` (desc).
+
+### Query em lote
+
+A consulta é feita com um único `findMany` com `projetoId: { in: projetoIds }`,
+seguida de desduplicação em memória por `projetoId` (pick mais recente).
+Garante N+1-free mesmo com centenas de projetos.
+
+### Uso
+
+Consumido pelo **proj-service** em
+`infrastructure/proj/read/manuscript-summary.adapter.ts` para popular os campos
+`totalCapitulos` e `totalImagens` nos cards da biblioteca de projetos.
