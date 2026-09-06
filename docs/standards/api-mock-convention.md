@@ -181,9 +181,12 @@ class MockGuard {
 ## 9. Multi-empresa in mock mode
 
 - The `mock` profile must honor `EmpresaContextHolder` (same enforcement as RULE-07).
-- Mock endpoints read `X-Empresa-Id` from the header and populate the context before returning a fixture.
+- Empresa context is resolved from the JWT `empresa_id` claim via `EmpresaContextInterceptor`
+  (same path as production). The mock profile does NOT read `X-Empresa-Id` from the request header —
+  the FE never sends it and the backend never reads it; empresa context always comes from the JWT.
 - Fixtures may carry a per-empresa suffix: `get-123-<empresa-a>.json`, `get-123-<empresa-b>.json`.
-- Without the `X-Empresa-Id` header, use `cordele.mock.empresa-default` from `application-mock.yml`.
+- When no valid JWT is present in mock mode, fall back to `cordele.mock.empresa-default` from
+  `application-mock.yml`.
 
 ---
 

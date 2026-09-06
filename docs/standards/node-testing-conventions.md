@@ -248,7 +248,8 @@ describe('POST /api/v1/invoices', () => {
     const response = await request(app.getHttpServer())
       .post('/api/v1/invoices')
       .set('Authorization', `Bearer ${token}`)
-      .set('X-Empresa-Id', 'emp_aetos')
+      // NOTE: X-Empresa-Id is NOT sent. Empresa context is resolved server-side from the
+      // `empresa_id` claim in the JWT (EmpresaContextInterceptor). The header is never read.
       .send(aCreateInvoiceRequest())
       .expect(201);
     expect(response.body).toMatchObject({ id: expect.any(String) });
