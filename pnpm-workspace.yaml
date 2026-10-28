@@ -1,28 +1,14 @@
-# Service packages expected (from project-context.modules.registry).
-# Created by /be-architect-scaffold via scripts/node-scaffold.py.
 packages:
   - "services/imp-service"
-  - "services/comp-service"
-  - "services/pub-service"
-  - "services/proj-service"
 
+# pnpm >=10 blocks dependency build scripts by default (ERR_PNPM_IGNORED_BUILDS).
+# Prisma needs its postinstall to generate the client and fetch the engines.
 allowBuilds:
-  '@nestjs/core': set this to true or false
-  '@prisma/client': set this to true or false
-  '@prisma/engines': set this to true or false
-  '@scarf/scarf': set this to true or false
-  cpu-features: set this to true or false
-  prisma: set this to true or false
-  protobufjs: set this to true or false
-  ssh2: set this to true or false
-
-# pnpm >=10 blocks dependency postinstall scripts by default
-# (ERR_PNPM_IGNORED_BUILDS). Prisma needs its postinstall to generate the client
-# and fetch the query engines, and @nestjs/core runs its own. Allow-list exactly
-# these instead of disabling the protection globally.
-# In pnpm 11 this setting lives here, NOT in package.json's "pnpm" field.
-onlyBuiltDependencies:
-  - "@nestjs/core"
-  - "@prisma/client"
-  - "@prisma/engines"
-  - "prisma"
+  '@nestjs/core': true
+  '@prisma/client': true
+  '@prisma/engines': true
+  prisma: true
+  '@scarf/scarf': false
+  protobufjs: false
+  cpu-features: false
+  ssh2: false
