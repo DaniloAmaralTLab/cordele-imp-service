@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "O Cordelê é uma plataforma SaaS B2B para transformar manuscritos, textos e arquivos Markdown em publicações digitais ePub válidas, sem necessidade de diagramação manual ou ferramentas técnicas especializadas.",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "engines": {
     "node": ">=22"
   },

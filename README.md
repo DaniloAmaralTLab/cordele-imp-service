@@ -34,3 +34,7 @@ npm run lint          # includes the hexagonal boundary rules
 ```
 
 Running the service needs PostgreSQL and an OIDC provider; see `.env.example`.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
