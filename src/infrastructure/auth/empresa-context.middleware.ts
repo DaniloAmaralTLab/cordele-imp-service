@@ -18,8 +18,6 @@ import { EmpresaContextService } from './empresa-context.service';
  *
  * Rotas sem Bearer token (ex.: `/health`) recebem `next()` sem contexto; o guard
  * delas é `@Public()` e os repositórios nunca são atingidos.
- *
- * @see docs/architecture/shared/multi-empresa.md
  */
 @Injectable()
 export class EmpresaContextMiddleware implements NestMiddleware {

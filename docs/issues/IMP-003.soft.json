@@ -1,8 +1,0 @@
-{
-  "issue": "IMP-003",
-  "layer": "be",
-  "softValue": 6,
-  "rationale": "REVISADO apos auditoria de codigo (2026-09-03); o veredito anterior de 8/10 citava 'testes de isolamento cross-schema que existem e passam' -- falso. Observabilidade 3/5: CorrelationIdInterceptor gera/ecoa X-Correlation-Id e ProblemDetailFilter RFC 7807 e health readiness+liveness existem, MAS o correlationId nao chega as linhas de log (sem MDC/ALS de logging), nao ha RequestLoggerMiddleware e nao ha metricas nem endpoint de export. Multi-empresa RULE-07 3/5: o mecanismo e real e aplicado em todos os repositorios (TenantPrismaFactory.withTenant executa SET LOCAL search_path por transacao; nenhum caminho de dados escapa), porem (a) o slug e interpolado sem validacao nem escape em $executeRawUnsafe (tenant-prisma.factory.ts:43,56), vindo de claim JWT ou de X-Tenant-Id para empresa-admin -- injecao de SQL; (b) NENHUM teste exercita o isolamento contra Postgres: @testcontainers/postgresql nao esta no package.json e o unico spec que o menciona esta em testPathIgnorePatterns; e2e e BDD rodam sobre fakes in-memory com guard sempre-true. Isolamento plausivel por leitura de codigo, nao verificado por execucao.",
-  "evaluatedAt": "2026-09-03T03:53:59Z",
-  "evaluatedBy": "code-audit-2026-09-03"
-}

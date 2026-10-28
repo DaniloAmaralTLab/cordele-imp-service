@@ -22,7 +22,7 @@ import { ManuscriptParseError } from '../../domain/imp/ports/manuscript-parser.p
  *
  * Mapeamento de erros de domínio IMP → problem types conforme api-contract.md §5.
  *
- * Registrado no AppModule via APP_FILTER (não em ImpModule — RULE-04).
+ * Registrado no AppModule via APP_FILTER (não em ImpModule).
  * Captura tanto erros de domínio (subclasses de Error) quanto HttpException do NestJS.
  */
 @Catch()

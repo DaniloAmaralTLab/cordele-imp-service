@@ -1,7 +1,7 @@
 /**
  * Erros de domínio do módulo IMP.
  *
- * Classes puras sem decoradores Nest nem imports externos (RULE-01/02).
+ * Classes puras sem decoradores Nest nem imports externos.
  * Mapeados para HTTP status codes nas camadas de controller/filter de exceção.
  */
 

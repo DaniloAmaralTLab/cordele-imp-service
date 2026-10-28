@@ -1,9 +1,9 @@
 /**
  * Port para consulta de ProjetoEditorial no módulo PROJ.
  *
- * Interface pura de domínio; sem decoradores Nest nem imports Prisma (RULE-01/02).
+ * Interface pura de domínio; sem decoradores Nest nem imports Prisma.
  * Usada pelo ImportManuscriptUseCase para verificar se um projetoId existe
- * na empresa ativa antes de vincular o manuscrito (D-C).
+ * na empresa ativa antes de vincular o manuscrito.
  */
 
 export interface FindProjetoOutput {

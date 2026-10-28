@@ -41,7 +41,7 @@ import { ImpService } from './imp.service';
  *
  * Controllers são thin: validam via ValidationPipe + DTOs, delegam ao
  * application service e moldam a resposta HTTP.
- * Não importa nada de infrastructure/ (RULE-04).
+ * Não importa nada de infrastructure/.
  * Proteção por JWT global via APP_GUARD em AppModule.
  */
 @ApiTags('manuscripts')
@@ -52,7 +52,7 @@ export class ImpController {
 
   /**
    * POST /api/imp/manuscripts
-   * Upload e parse síncrono de manuscrito (multipart/form-data — D-A / D-C).
+   * Upload e parse síncrono de manuscrito (multipart/form-data).
    * Requer scope `imp:write` (api-contract §4.1).
    */
   @Post('manuscripts')
@@ -186,7 +186,7 @@ export class ImpController {
 
   /**
    * GET /api/imp/manuscripts/:id/segmentos/ignored
-   * Lista os ids dos segmentos atualmente ignorados de um manuscrito (T04 hydration).
+   * Lista os ids dos segmentos atualmente ignorados de um manuscrito (usado ao abrir a revisão de estrutura).
    * Requer scope `imp:read` (enforced by JwtAuthGuard via @RequiredScopes metadata).
    */
   @Get('manuscripts/:id/segmentos/ignored')
@@ -202,7 +202,7 @@ export class ImpController {
 
   /**
    * POST /api/imp/manuscripts/:id/confirm-estrutura
-   * Confirmar a estrutura de um manuscrito (avança o pipeline para Composição).
+   * Confirmar a estrutura de um manuscrito (avança o projeto para Composição).
    * Retorna 200 OK (contrato api-contract.md §8.3) — não cria recurso novo, é um comando.
    * Requer scope `imp:write` (api-contract §8.2, Port: imp:write — avanço de status).
    */

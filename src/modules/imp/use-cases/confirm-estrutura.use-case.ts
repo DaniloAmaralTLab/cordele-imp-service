@@ -11,7 +11,7 @@ import {
 
 export interface ConfirmEstruturaCommand {
   readonly manuscritoId: string;
-  /** Slug da empresa — requerido antes do primeiro acesso ao repositório (RULE-07). */
+  /** Slug da empresa — requerido antes do primeiro acesso ao repositório. */
   readonly empresaId: string;
   /**
    * Bearer token do usuário que originou a requisição HTTP.
@@ -23,13 +23,13 @@ export interface ConfirmEstruturaCommand {
 }
 
 /**
- * Use case: ConfirmEstruturaUseCase (IMP-008).
+ * Use case: ConfirmEstruturaUseCase.
  *
  * Confirma a estrutura do manuscrito e avança o ProjetoEditorial para Composição.
  * Idempotente: segunda chamada não lança exceção (AdvanceProjetoStatusPort é idempotente).
  *
- * Não importa @prisma/client nem infrastructure/ (RULE-01/02/04).
- * empresaId requerido antes de qualquer acesso ao repositório (RULE-07).
+ * Não importa @prisma/client nem infrastructure/.
+ * empresaId requerido antes de qualquer acesso ao repositório.
  */
 @Injectable()
 export class ConfirmEstruturaUseCase {
@@ -46,7 +46,7 @@ export class ConfirmEstruturaUseCase {
   async execute(command: ConfirmEstruturaCommand): Promise<void> {
     const { manuscritoId, empresaId, bearerToken } = command;
 
-    // RULE-07: empresaId requerido antes do primeiro repositório.
+    // empresaId requerido antes do primeiro repositório.
     const manuscrito = await this.manuscritoRepo.findById(manuscritoId, empresaId);
     if (!manuscrito) {
       throw new ManuscritoNaoEncontradoError(manuscritoId);

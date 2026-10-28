@@ -1,13 +1,4 @@
--- =============================================================================
--- Prisma migration: init
--- Service:   imp-service
--- Generated: 2026-08-24 by node-migration-generator.py (D-545)
--- Source:    imp-service/contracts/data-model.md (2 ```sql``` block(s))
---
--- GENERATED FILE. To change the DDL: edit contracts/data-model.md and re-run
---   python scripts/node-migration-generator.py stub --module <M> --name <name> --force
--- Then keep prisma/schema.prisma in sync via node-entity-generator.py.
--- =============================================================================
+-- Initial schema for imp-service.
 
 -- schema: empresa
 CREATE TABLE manuscrito (

@@ -3,7 +3,7 @@ import type { Manuscrito } from '../manuscrito.entity';
 /**
  * Resultado de sumário por projeto (para o endpoint de lote do proj-service).
  *
- * Tipo puro de domínio — sem decoradores Nest nem imports Prisma (RULE-01/02).
+ * Tipo puro de domínio — sem decoradores Nest nem imports Prisma.
  */
 export interface ManuscritoSummaryRecord {
   projetoId: string;
@@ -14,8 +14,8 @@ export interface ManuscritoSummaryRecord {
 /**
  * Port de repositório para o agregado Manuscrito.
  *
- * Interface pura de domínio; sem decoradores Nest nem imports Prisma (RULE-01/02).
- * Implementada em infrastructure/persistence/ (RULE-04/05).
+ * Interface pura de domínio; sem decoradores Nest nem imports Prisma.
+ * Implementada em infrastructure/persistence/.
  */
 export interface ManuscritoRepositoryPort {
   /**

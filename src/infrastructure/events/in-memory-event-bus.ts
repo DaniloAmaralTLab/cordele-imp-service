@@ -6,11 +6,11 @@ import type {
 } from '../../domain/imp/ports/event-bus.port';
 
 /**
- * Implementação in-memory do IEventBus (IMP-INT-003).
+ * Implementação in-memory do IEventBus.
  *
  * Logs os eventos publicados; adequado para desenvolvimento e testes.
  * Substituível por adapter EventEmitter2 / mensageria real em produção.
- * NÃO importa modules/ (RULE-05).
+ * NÃO importa modules/.
  */
 @Injectable()
 export class InMemoryEventBus implements IEventBus {

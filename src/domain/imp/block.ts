@@ -15,14 +15,14 @@ export type BlockType =
 /**
  * Razões pelas quais um segmento não pôde ser parseado.
  *
- * Valores canônicos (feature/spec): complex_table, math_equation, nested_footnote,
+ * Valores canônicos: complex_table, math_equation, nested_footnote,
  * unknown_docx_style, unsupported_markup, embedded_object, other.
  *
  * Valores legados mantidos para compatibilidade com adapters existentes até refactor:
  * unsupported_media, nested_list, unknown_style, corrupted_content, missing_mapping.
  */
 export type UnparsedReason =
-  // Canonical values (feature spec / ADR-002)
+  // Canonical values
   | 'complex_table'
   | 'math_equation'
   | 'nested_footnote'

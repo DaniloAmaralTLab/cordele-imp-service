@@ -12,7 +12,7 @@ import { MarkdownParserAdapter } from './markdown-parser.adapter';
  * ParserFactory — implementação de ManuscriptParserPort que delega
  * ao adapter correto com base no MIME type.
  *
- * Registrada como MANUSCRIPT_PARSER_PORT em PersistenceModule (P4).
+ * Registrada como MANUSCRIPT_PARSER_PORT em PersistenceModule.
  * Novos adapters são adicionados ao array `adapters`; a fábrica seleciona
  * o primeiro que retorna `supports(mimeType) === true`.
  */

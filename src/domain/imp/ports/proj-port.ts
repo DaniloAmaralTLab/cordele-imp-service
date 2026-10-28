@@ -1,7 +1,7 @@
 /**
  * Ports para integração com o módulo PROJ (Projetos Editoriais).
  *
- * Interfaces puras de domínio; sem decoradores Nest nem imports Prisma (RULE-01/02).
+ * Interfaces puras de domínio; sem decoradores Nest nem imports Prisma.
  * Implementadas em infrastructure/proj/ como stubs até o PROJ service estar disponível.
  */
 
@@ -28,7 +28,7 @@ export interface CreateProjetoEditorialOutput {
 
 /**
  * Port para criação de um ProjetoEditorial no módulo PROJ
- * a partir de um Manuscrito recém-importado (IMP-INT-001).
+ * a partir de um Manuscrito recém-importado.
  */
 export interface CreateProjetoEditorialPort {
   create(
@@ -44,7 +44,7 @@ export const CREATE_PROJETO_EDITORIAL_PORT = 'CREATE_PROJETO_EDITORIAL_PORT';
 export interface AdvanceProjetoStatusInput {
   /** ID do projeto editorial a avançar. */
   readonly projetoId: string;
-  /** Status alvo no pipeline (ex.: 'COMPOSICAO'). */
+  /** Status alvo no fluxo editorial (ex.: 'COMPOSICAO'). */
   readonly targetStatus: string;
   /** Slug da empresa (multi-empresa). */
   readonly empresaId: string;
@@ -58,7 +58,7 @@ export interface AdvanceProjetoStatusInput {
 
 /**
  * Port para avançar o status de um ProjetoEditorial no módulo PROJ
- * após confirmação de estrutura (IMP-INT-002).
+ * após confirmação de estrutura.
  */
 export interface AdvanceProjetoStatusPort {
   advance(input: AdvanceProjetoStatusInput): Promise<void>;

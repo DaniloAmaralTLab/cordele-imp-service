@@ -60,7 +60,7 @@ interface MdastNode {
  *   code block → Block(code)
  *   blockquote → Block(quote)
  *
- * Implementa ManuscriptParserPort (RULE-06).
+ * Implementa ManuscriptParserPort.
  */
 @Injectable()
 export class MarkdownParserAdapter implements ManuscriptParserPort {
@@ -373,7 +373,6 @@ function addBlockToState(state: BuildState, block: Block): void {
   if (state.currentSection) {
     state.currentSection.blocks.push(block);
   }
-  // Blocos antes de qualquer seção são descartados (texto pré-estrutural).
 }
 
 function addUnparsedToState(state: BuildState, segment: UnparsedSegment): void {

@@ -20,7 +20,7 @@ const SUPPORTED_MIME = new Set([
  *
  * Style map: H1=chapter, H2=section.
  * Tabelas → UnparsedSegment(complex_table).
- * Implementa ManuscriptParserPort (RULE-06: clientes de I/O somente em infrastructure).
+ * Implementa ManuscriptParserPort.
  */
 @Injectable()
 export class DocxParserAdapter implements ManuscriptParserPort {
@@ -307,7 +307,6 @@ function addBlockToState(state: BuildState, block: Block): void {
   if (state.currentSection) {
     state.currentSection.blocks.push(block);
   }
-  // Blocos fora de seção são descartados (orphan text antes de qualquer H1/H2).
 }
 
 function addUnparsedToState(state: BuildState, segment: UnparsedSegment): void {

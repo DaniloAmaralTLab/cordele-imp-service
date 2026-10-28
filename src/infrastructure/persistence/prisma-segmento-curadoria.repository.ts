@@ -11,13 +11,12 @@ import { TenantPrismaFactory } from './tenant-prisma.factory';
  *
  * Implementa `SegmentoCuradoriaRepositoryPort` usando Prisma + schema-per-tenant.
  *
- * RULE-07: `empresaId` requerido em todos os métodos para isolamento multi-empresa.
+ * `empresaId` requerido em todos os métodos para isolamento multi-empresa.
  *
  * `save()` faz upsert por `(manuscritoId, segmentoId)` — constraint UNIQUE na tabela.
  * O upsert atualiza `acao` se o registro já existir (idempotente por design).
  *
- * `criadoPor` derivado do `userId` do principal autenticado via `EmpresaContextService`
- * (P5: substituindo o placeholder `'system'` anterior).
+ * `criadoPor` derivado do `userId` do principal autenticado via `EmpresaContextService`.
  */
 @Injectable()
 export class PrismaSegmentoCuradoriaRepository
@@ -35,7 +34,7 @@ export class PrismaSegmentoCuradoriaRepository
    * Persiste ou atualiza um SegmentoCuradoria (upsert por manuscritoId + segmentoId).
    *
    * `criadoPor` é derivado do JWT via `EmpresaContextService`; fallback `'system'`
-   * para invocações batch sem contexto HTTP (RULE-07).
+   * para invocações batch sem contexto HTTP.
    */
   async save(
     segmento: SegmentoCuradoria,

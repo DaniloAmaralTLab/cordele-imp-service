@@ -1,189 +1,159 @@
-# API Contract — imp-service (Importação)
+# Contrato da API — imp-service (Importação)
 
-**Module:** IMP · **Service:** `imp-service` · **Stack:** Node 22 · NestJS 11 · Prisma · PostgreSQL 16
-**Base path:** `/api/imp` (served through the single BFF — TECH-003; the frontend never writes to storage or DB directly)
-**Governing ADRs:** shared `docs/architecture/backend/adr/ADR-001-hexagonal-node.md` (hexagonal boundary),
-`ADR-002-modular-monolith.md`, `ADR-003-multi-tenancy.md`; local `adr/ADR-001-service-boundary.md`,
-`adr/ADR-002-manuscript-immutability-lossless-parse.md`.
-EARS acceptance criteria per endpoint follow `docs/architecture/backend/standards/ears-notation.md`.
+Serviço `imp-service` · Node 22 · NestJS · Prisma · PostgreSQL 16.
+Base path: `/api/imp` (com o prefixo global, `/api/v1/imp`). O frontend fala com o serviço só por
+esta API; nunca escreve direto no storage nem no banco.
 
 ---
 
-## 0. Authoritative decisions resolved in this contract
+## 0. Decisões gerais
 
-Three decisions were open at the end of the Vision phase (doc 06 gaps, M1 handoff warnings). They are
-resolved here and are **binding on downstream phases**, including the FE Specs phase (M3).
+### Parse síncrono
 
-### D-A — Parse is SYNCHRONOUS in the request cycle (BE is authoritative)
+`POST /api/imp/manuscripts` faz o parse do arquivo dentro da própria requisição e devolve o
+`Manuscrito` já persistido, com a árvore de conteúdo, na mesma resposta. Não existe job de parse,
+`202 Accepted` nem endpoint de polling. A resposta de sucesso é `201 Created` com o
+`ManuscritoDetail` completo (incluindo `estrutura`). O limite de 50 MB mantém a requisição
+dentro de um tempo aceitável.
 
-`POST /api/imp/manuscripts` **parses the file inside the request and returns the fully parsed,
-persisted `Manuscrito` (content tree included) in the same response.**
+`GET /api/imp/manuscripts/{id}` existe para recarregar a tela, abrir por link direto ou retomar a
+revisão. É uma leitura simples do recurso, não um teste de "já terminou?".
 
-- There is **NO** `parseJobId`, **NO** `202 Accepted`, and **NO** parse-status polling endpoint.
-- The successful response is `201 Created` with the complete `ManuscritoDetail` (including `estrutura`).
-- This follows doc 04 (*Async vs Sync Decisions*) and doc 06 assumption **A4**: with no broker
-  (`messaging.enabled=false`) there is nowhere to offload to, and the editor waits on Structure Review
-  anyway. The 50 MB cap plus streamed parsing bounds the request.
+### Campo `status`
 
-> **BE overrides FE ADR-IMP-001.** The frontend ADR `ADR-IMP-001-parse-progress-polling` assumed a
-> two-phase `POST → {parseJobId} → GET polling` flow. That assumption is **rejected as the server
-> contract**. The BE is authoritative on transport shape. **M3 (FE Specs) MUST rewrite or downgrade
-> ADR-IMP-001** to the synchronous shape: a single `POST` that returns the parsed manuscript, with the
-> UI showing an indeterminate "analisando estrutura…" indicator for the duration of the request (no
-> polling loop, no `parseJobId`). `GET /api/imp/manuscripts/{id}` remains available for **reload /
-> deep-link / resume**, but it is a plain resource read, never a readiness probe.
+Mesmo com o fluxo síncrono, o `Manuscrito` tem um campo `status`. Hoje todo manuscrito persistido
+volta com `status = "imported"`. Os valores `"parsing"` e `"import_failed"` estão reservados para um
+eventual fluxo assíncrono no futuro, para que ele possa entrar sem mudar o schema nem o payload.
 
-### D-B — `Manuscrito.status` field is modelled anyway (async path kept open)
+### Vínculo com o projeto editorial
 
-Even though the MVP flow is synchronous, `Manuscrito` carries a `status` field (see `data-model.md`).
-In the synchronous MVP a persisted manuscript is always returned with `status = "imported"`. The enum
-reserves `"parsing"` and `"import_failed"` for a **post-POC asynchronous path** (doc 04 *Future async
-path*) so it can be introduced **without a breaking schema or payload change** — the field, the enum
-domain, and the `GET` resource already exist. The MVP simply never emits a non-terminal status.
+O `ProjetoEditorial` pertence ao serviço de projetos (PROJ). O IMP só referencia o projeto e nunca
+escreve nas tabelas dele. O upload traz **exatamente um** de dois campos, mutuamente exclusivos:
 
-### D-C — Ownership of `ProjetoEditorial` (who creates it, and how)
-
-`ProjetoEditorial` is **owned by the PROJ context** (doc 04, doc 05); IMP references it and never writes
-its table. The prototype screen T03 creates the project at the moment of upload. This is reconciled as
-follows and is **unambiguous for the FE upload screen**:
-
-The upload request carries **exactly one** of two mutually exclusive project bindings:
-
-| Field (multipart) | Meaning | IMP behaviour |
+| Campo (multipart) | Significado | O que o IMP faz |
 |---|---|---|
-| `projetoId` (UUID) | attach the manuscript to a **pre-existing** project | IMP validates the project exists and belongs to the active tenant (via the PROJ inbound port), then binds. IMP **does not** create anything. |
-| `projetoTitulo` (string) | create-and-upload in **one action** (the T03 flow) | IMP calls the **PROJ inbound port `CreateProjetoEditorialUseCase` in-process** (both are modules of the same monolith) to create the project, then binds the new manuscript to it. **PROJ remains the sole writer** of `projeto_editorial`; IMP never touches PROJ tables. |
+| `projetoId` (UUID) | anexar o manuscrito a um projeto **já existente** | confere, pela porta do PROJ, que o projeto existe e pertence à empresa ativa, e então vincula. Não cria nada. |
+| `projetoTitulo` (string) | criar o projeto e subir o manuscrito **numa ação só** | pede ao PROJ que crie o projeto e vincula o novo manuscrito a ele. O PROJ continua sendo o único que escreve em `projeto_editorial`. |
 
-- **EARS:** `IF the request supplies neither projetoId nor projetoTitulo, OR supplies both, THEN THE
-  SYSTEM SHALL reject the request with 400 (problem type urn:cordele:imp:invalid-project-binding).`
-- **EARS:** `WHEN the request supplies projetoId, THE SYSTEM SHALL verify the project exists in the
-  active empresa and, IF it does not, THEN reject with 422 (urn:cordele:imp:projeto-not-found).`
-- **EARS:** `WHEN the request supplies projetoTitulo, THE SYSTEM SHALL create the ProjetoEditorial
-  through the PROJ inbound port before parsing and bind the manuscript to the created project id.`
+- Sem nenhum dos dois, ou com os dois: `400`, problem type `urn:cordele:imp:invalid-project-binding`.
+- Com `projetoId` de um projeto que não existe na empresa ativa: `422`, `urn:cordele:imp:projeto-not-found`.
+- Com `projetoTitulo`: o projeto é criado antes do parse e o manuscrito fica vinculado ao id criado.
 
-The in-process IMP→PROJ dependency is registered in `integration-contracts.md`. The FE upload screen
-(T03) therefore sends `file` + (`projetoTitulo` for a new project **or** `projetoId` for an existing
-one); it never invents a project id and never calls a project-creation endpoint separately for the
-create-and-upload flow.
+A tela de upload, portanto, manda `file` + `projetoTitulo` (projeto novo) **ou** `projetoId`
+(projeto existente). Ela nunca inventa um id de projeto nem chama um endpoint separado de criação
+de projeto nesse fluxo.
 
 ---
 
-## 1. Conventions
+## 1. Convenções
 
-- **Media type:** `application/json` for responses; `multipart/form-data` for the upload.
-- **IDs:** UUID v4 (server-generated). Never client-supplied.
-- **Timestamps:** RFC 3339 / ISO-8601 UTC (`criadoEm`).
-- **Errors:** RFC 7807 `application/problem+json` (see §5).
-- **Idempotency:** immutability by construction — each upload creates a **new** manuscript. Optional
-  content-hash dedupe is reserved (see `data-model.md` §`content_hash`, `SPEC-05`), off in the MVP.
+- **Media type:** `application/json` nas respostas; `multipart/form-data` no upload.
+- **IDs:** UUID v4 gerados pelo servidor, nunca enviados pelo cliente.
+- **Datas:** ISO-8601 em UTC (`criadoEm`).
+- **Erros:** RFC 7807, `application/problem+json` (ver §5).
+- **Idempotência:** cada upload cria um manuscrito **novo**; manuscritos são imutáveis. Não há
+  deduplicação por hash de conteúdo.
 
-## 2. Authentication, authorization, tenancy
+## 2. Autenticação, autorização e empresa
 
-- **Auth:** OAuth2 Bearer JWT (`Authorization: Bearer <token>`). Unauthenticated → `401`.
-- **Scopes:** `imp:write` (upload), `imp:read` (read manuscripts / content tree).
-- **Tenant:** the owning `empresa` is taken **from the JWT claim** and applied via `EmpresaContext`
-  (AsyncLocalStorage, RULE-07 / ADR-003). It is **never** read from the path, query or body.
-  - **EARS:** `THE SYSTEM SHALL resolve the tenant schema exclusively from the authenticated principal's
-    empresa claim.`
-  - **EARS:** `IF a caller references a manuscritoId or projetoId that belongs to another empresa, THEN
-    THE SYSTEM SHALL respond 404 (never revealing cross-tenant existence).`
+- **Autenticação:** Bearer JWT (`Authorization: Bearer <token>`). Sem token válido → `401`.
+- **Scopes:** `imp:write` (upload e ações de curadoria), `imp:read` (leituras).
+- **Empresa:** a empresa dona dos dados vem **do claim do JWT** e é aplicada pelo `EmpresaContext`
+  (AsyncLocalStorage). Ela nunca é lida do path, da query nem do body.
+- Se o chamador referencia um `manuscritoId` ou `projetoId` de outra empresa, a resposta é `404`,
+  para não revelar que o recurso existe.
 
-## 3. Required headers
+## 3. Cabeçalhos
 
-| Header | Direction | Notes |
+| Cabeçalho | Direção | Observação |
 |---|---|---|
-| `Authorization: Bearer <jwt>` | request | required on every endpoint |
-| `X-Correlation-Id` | request (optional) / response (always) | propagated to logs and pipeline events; generated if absent |
-| `Content-Type: multipart/form-data` | request | upload only |
-| `Content-Type: application/problem+json` | response | error responses |
+| `Authorization: Bearer <jwt>` | requisição | obrigatório em todos os endpoints |
+| `X-Correlation-Id` | requisição (opcional) / resposta (sempre) | propagado para os logs; gerado quando ausente |
+| `Content-Type: multipart/form-data` | requisição | só no upload |
+| `Content-Type: application/problem+json` | resposta | respostas de erro |
 
 ---
 
-## 4. Resources
+## 4. Recursos
 
-### 4.1 `POST /api/imp/manuscripts` — upload + synchronous parse
+### 4.1 `POST /api/imp/manuscripts` — upload + parse síncrono
 
-Uploads a DOCX/Markdown file, parses it deterministically, persists an immutable `Manuscrito`, emits
-`ManuscriptImported`, and returns the parsed result **in the same response** (decision D-A).
+Recebe um arquivo DOCX ou Markdown, faz o parse, persiste um `Manuscrito` imutável, publica
+`ManuscriptImported` e devolve o resultado **na mesma resposta**.
 
-**Scope:** `imp:write` · **Request:** `multipart/form-data`
+**Scope:** `imp:write` · **Requisição:** `multipart/form-data`
 
-| Part | Type | Required | Notes |
+| Parte | Tipo | Obrigatória | Observação |
 |---|---|---|---|
-| `file` | binary | yes | `.docx` or `.md`; `≤ 50 MB` (52428800 bytes) |
-| `projetoId` | text (UUID) | conditional | existing project (see D-C); mutually exclusive with `projetoTitulo` |
-| `projetoTitulo` | text | conditional | create-and-upload; mutually exclusive with `projetoId` |
+| `file` | binário | sim | `.docx` ou `.md`; até 50 MB (52428800 bytes) |
+| `projetoId` | texto (UUID) | condicional | projeto existente (ver §0); exclusivo com `projetoTitulo` |
+| `projetoTitulo` | texto | condicional | cria o projeto e sobe o manuscrito; exclusivo com `projetoId` |
 
-**Success — `201 Created`**, body = `ManuscritoDetail` (§6.1), `Location: /api/imp/manuscripts/{id}`.
+**Sucesso — `201 Created`**, corpo = `ManuscritoDetail` (§6.1), `Location: /api/imp/manuscripts/{id}`.
 
-Acceptance criteria (EARS):
+Comportamento:
 
-- `WHEN a supported file (docx|markdown) within the size cap is uploaded with a valid project binding,
-  THE SYSTEM SHALL parse it, persist an immutable Manuscrito, emit ManuscriptImported, and respond 201
-  with the full ManuscritoDetail including estrutura and status="imported".`
-- `IF the file extension/content is not docx or markdown, THEN THE SYSTEM SHALL respond 415
-  (urn:cordele:imp:unsupported-format) and persist nothing.`
-- `IF the file exceeds 52428800 bytes, THEN THE SYSTEM SHALL respond 413
-  (urn:cordele:imp:file-too-large) before writing to storage.`
-- `WHILE parsing yields regions it cannot structure, THE SYSTEM SHALL preserve them verbatim as
-  unparsed segments, still respond 201, and report a non-zero trechosNaoParseados count.` (never drops
-  content — local ADR-002)
-- `IF parsing fails irrecoverably (corrupt/unreadable file), THEN THE SYSTEM SHALL respond 422
-  (urn:cordele:imp:parse-failed), emit ManuscriptImportRejected, and persist no manuscript.`
-- `THE SYSTEM SHALL store the original binary under a tenant-scoped key before returning success.`
-- `THE SYSTEM SHALL guarantee that totalCapitulos, totalImagens and trechosNaoParseados equal the
-  counts derivable from the returned estrutura.`
+- Arquivo suportado, dentro do limite e com vínculo de projeto válido: o parse é feito, o manuscrito é
+  persistido, `ManuscriptImported` é publicado e a resposta é `201` com o `ManuscritoDetail` completo,
+  `estrutura` incluída e `status = "imported"`.
+- Se a extensão ou o conteúdo do arquivo não for DOCX nem Markdown: `415`
+  (`urn:cordele:imp:unsupported-format`) e nada é persistido. Detalhes em §11.
+- Arquivo acima de 52428800 bytes: `413` (`urn:cordele:imp:file-too-large`), antes de gravar no storage.
+- Regiões que o parser não consegue estruturar são preservadas tal como estão, como trechos não
+  parseados; a resposta continua `201` e `trechosNaoParseados` vem maior que zero. Conteúdo nunca é
+  descartado (ver §10).
+- Falha irrecuperável de parse (arquivo corrompido ou ilegível): `422` (`urn:cordele:imp:parse-failed`),
+  `ManuscriptImportRejected` é publicado e nenhum manuscrito é persistido.
+- O binário original é gravado no storage, sob uma chave da empresa, antes de responder com sucesso.
+- `totalCapitulos`, `totalImagens` e `trechosNaoParseados` batem com o que se conta na `estrutura`
+  devolvida.
 
-### 4.2 `GET /api/imp/manuscripts/{manuscritoId}` — read one manuscript
+### 4.2 `GET /api/imp/manuscripts/{manuscritoId}` — lê um manuscrito
 
-Plain resource read for **reload / deep-link / Structure Review hydration** (T04). **NOT a polling /
-readiness probe** — in the synchronous MVP it always returns a terminal `status="imported"`.
+Leitura simples, usada para recarregar ou abrir a revisão de estrutura por link. Não é polling: no
+fluxo atual sempre volta `status = "imported"`.
 
-**Scope:** `imp:read` · **Success — `200 OK`**, body = `ManuscritoDetail` (§6.1).
+**Scope:** `imp:read` · **Sucesso — `200 OK`**, corpo = `ManuscritoDetail` (§6.1).
 
-- `WHEN an existing manuscritoId of the active empresa is requested, THE SYSTEM SHALL return its full
-  ManuscritoDetail.`
-- `IF the manuscritoId does not exist in the active empresa, THEN THE SYSTEM SHALL respond 404.`
+- Manuscrito existente na empresa ativa: devolve o `ManuscritoDetail` completo.
+- Manuscrito inexistente na empresa ativa: `404`.
 
-### 4.3 `GET /api/imp/manuscripts/{manuscritoId}/estrutura` — content tree only
+### 4.3 `GET /api/imp/manuscripts/{manuscritoId}/estrutura` — só a árvore de conteúdo
 
-Returns only the content tree (may be large); avoids re-sending diagnostics.
+Devolve apenas a árvore (que pode ser grande), sem reenviar os contadores.
 
-**Scope:** `imp:read` · **Success — `200 OK`**, body = `ContentTree` (§6.2).
+**Scope:** `imp:read` · **Sucesso — `200 OK`**, corpo = `ContentTree` (§6.2).
 
-- `WHEN an existing manuscritoId is requested, THE SYSTEM SHALL return its estrutura content tree
-  conforming to the ContentTree schema (§6.2).`
+### 4.4 `GET /api/imp/projetos/{projetoId}/manuscritos` — histórico de importações
 
-### 4.4 `GET /api/imp/projetos/{projetoId}/manuscritos` — immutable import history
+Lista os manuscritos importados num projeto, do mais novo para o mais antigo. Como manuscritos são
+imutáveis, é um histórico só de inserção: um novo upload acrescenta uma linha, nada é alterado.
 
-Lists the manuscripts imported into a project (newest first). Immutability makes this an append-only
-history (re-uploads add rows; nothing is mutated).
+**Scope:** `imp:read` · **Sucesso — `200 OK`**, corpo = `ManuscritoSummary[]` (§6.4).
 
-**Scope:** `imp:read` · **Success — `200 OK`**, body = `ManuscritoSummary[]` (§6.3).
-
-- `WHEN an existing projetoId of the active empresa is requested, THE SYSTEM SHALL return its
-  manuscripts ordered by criadoEm descending (possibly empty).`
-- `IF the projetoId belongs to another empresa or does not exist, THEN THE SYSTEM SHALL respond 404.`
+- Projeto existente na empresa ativa: lista ordenada por `criadoEm` decrescente (pode ser vazia).
+- Projeto de outra empresa ou inexistente: `404`.
 
 ---
 
-## 5. Errors (RFC 7807 ProblemDetail)
+## 5. Erros (RFC 7807 ProblemDetail)
 
-All errors use `application/problem+json`. `type` is a stable URN; `traceId` mirrors `X-Correlation-Id`.
+Todos os erros usam `application/problem+json`. O `type` é uma URN estável e o campo `traceId`
+repete o valor de `X-Correlation-Id` da requisição, para que o suporte consiga achar o erro nos logs.
 
-| `type` (URN) | HTTP | When |
+| `type` (URN) | HTTP | Quando |
 |---|---|---|
-| `urn:cordele:imp:unsupported-format` | 415 | file is not docx/markdown |
-| `urn:cordele:imp:file-too-large` | 413 | file > 50 MB |
-| `urn:cordele:imp:invalid-project-binding` | 400 | neither / both of projetoId, projetoTitulo |
-| `urn:cordele:imp:projeto-not-found` | 422 | projetoId does not exist in the active empresa |
-| `urn:cordele:imp:parse-failed` | 422 | file unreadable / irrecoverable parse error |
-| `urn:cordele:imp:validation` | 400 | malformed request (missing file part, etc.) |
-| `urn:cordele:imp:unauthorized` | 401 | missing/invalid token |
-| `urn:cordele:imp:forbidden` | 403 | valid token lacking the required scope |
-| `urn:cordele:imp:not-found` | 404 | manuscritoId/projetoId not in active empresa |
+| `urn:cordele:imp:unsupported-format` | 415 | arquivo não é DOCX nem Markdown |
+| `urn:cordele:imp:file-too-large` | 413 | arquivo acima de 50 MB |
+| `urn:cordele:imp:invalid-project-binding` | 400 | nenhum ou ambos de `projetoId` / `projetoTitulo` |
+| `urn:cordele:imp:projeto-not-found` | 422 | `projetoId` não existe na empresa ativa |
+| `urn:cordele:imp:parse-failed` | 422 | arquivo ilegível / erro de parse irrecuperável |
+| `urn:cordele:imp:validation` | 400 | requisição malformada (falta a parte `file`, etc.) |
+| `urn:cordele:imp:unauthorized` | 401 | token ausente ou inválido |
+| `urn:cordele:imp:forbidden` | 403 | token válido sem o scope necessário |
+| `urn:cordele:imp:not-found` | 404 | `manuscritoId` / `projetoId` fora da empresa ativa |
 
-Example:
+Exemplo:
 
 ```json
 {
@@ -213,18 +183,18 @@ Example:
   "totalImagens": 5,
   "trechosNaoParseados": 2,
   "tamanhoBytes": 8421000,
-  "estrutura": { "...": "ContentTree — see §6.2" },
+  "estrutura": { "...": "ContentTree — ver §6.2" },
   "criadoEm": "2026-08-24T14:31:46Z"
 }
 ```
 
-- `formato ∈ {docx, markdown}`; `status ∈ {imported, parsing, import_failed}` (MVP always `imported`).
-- `binarioStorageKey` is **not** exposed in the API surface (internal, tenant-scoped).
+- `formato ∈ {docx, markdown}`; `status ∈ {imported, parsing, import_failed}` (hoje sempre `imported`).
+- A chave do binário no storage é interna e não aparece na API.
 
-### 6.2 `ContentTree` (formalized — closes the M1 gap)
+### 6.2 `ContentTree`
 
-The canonical JSON shape of `estrutura`. The tree is an **ordered forest of chapters**; every node has
-a stable `id` (unique within the tree) and an integer `order` giving document order among siblings.
+Forma JSON de `estrutura`. A árvore é uma lista ordenada de capítulos; todo nó tem um `id` estável
+(único dentro da árvore) e um `order` inteiro que dá a ordem no documento entre os irmãos.
 
 ```json
 {
@@ -235,7 +205,7 @@ a stable `id` (unique within the tree) and an integer `order` giving document or
       "id": "ch-1",
       "order": 0,
       "title": "Capítulo I — A partida",
-      "blocks": [ /* chapter-level blocks appearing before the first section */ ],
+      "blocks": [ /* blocos do capítulo que aparecem antes da primeira seção */ ],
       "sections": [
         {
           "id": "sec-1-1",
@@ -249,61 +219,58 @@ a stable `id` (unique within the tree) and an integer `order` giving document or
 }
 ```
 
-A **`Block`** is a discriminated union on `type`:
+Um **`Block`** é uma união discriminada pelo campo `type`:
 
 ```json
-// Paragraph — author text, preserved verbatim (content is sacrosanct)
+// Parágrafo — texto do autor, preservado exatamente como escrito
 { "type": "paragraph", "id": "p-14", "order": 3,
   "text": "Era uma vez, no sertão...",
   "runs": [ { "text": "Era uma vez, no sertão...", "marks": ["italic"] } ] }
 
-// Image — extracted (DOCX) or referenced (Markdown), stored by key
+// Imagem — extraída (DOCX) ou referenciada (Markdown), guardada por chave
 { "type": "image", "id": "img-2", "order": 4,
   "storageKey": "emp_aetos/manuscritos/<id>/img-2.png",
   "mime": "image/png", "alt": "Mapa do sertão", "originalName": "mapa.png" }
 
-// UnparsedSegment — preserved verbatim, never dropped (local ADR-002)
+// Trecho não parseado — preservado tal como está, nunca descartado
 { "type": "unparsed", "id": "u-1", "order": 7,
   "rawContent": "<w:tbl>...</w:tbl>",
   "reason": "complex_table",
   "sourceLocation": { "kind": "docx", "paragraphIndex": 212, "styleName": "TableGrid" } }
 ```
 
-**Rules / invariants (EARS):**
+Regras da árvore:
 
-- `THE SYSTEM SHALL assign every node a unique id within the tree and a contiguous, gap-free order
-  among its siblings starting at 0.`
-- `THE SYSTEM SHALL preserve paragraph text exactly as authored; runs carry inline formatting as marks
-  over ranges without altering the text.` (`marks ⊆ {bold, italic, underline, strikethrough, code,
-  superscript, subscript}`)
-- `THE SYSTEM SHALL represent any region it cannot confidently structure as an UnparsedSegment node in
-  document order, so that the union of paragraph/image/unparsed nodes accounts for the entire source.`
-- `runs` is optional; when absent, `text` is the canonical content. When present, the concatenation of
-  `runs[].text` MUST equal `text`.
+- Todo nó tem `id` único na árvore e `order` contínuo, sem buracos, entre os irmãos, começando em 0.
+- O texto do parágrafo é mantido exatamente como foi escrito. A formatação inline vai em `runs`, como
+  `marks` sobre trechos do texto, sem alterar o texto (`marks ⊆ {bold, italic, underline,
+  strikethrough, code, superscript, subscript}`).
+- `runs` é opcional; sem ele, `text` é o conteúdo canônico. Com ele, a concatenação de `runs[].text`
+  tem que ser igual a `text`.
+- Toda região que o parser não consegue estruturar com confiança vira um trecho não parseado, na
+  ordem do documento, de forma que parágrafos + imagens + trechos não parseados cubram o arquivo
+  inteiro.
 
-### 6.3 Unparsed-segment taxonomy (formalized — closes the M1 gap)
+### 6.3 Motivos de trecho não parseado
 
-`UnparsedSegment.reason` is a closed enum; `sourceLocation.kind` matches `formato`.
+`UnparsedSegment.reason` é um enum fechado; `sourceLocation.kind` acompanha o `formato`.
 
-| `reason` | Meaning |
+| `reason` | Significado |
 |---|---|
-| `complex_table` | table structure beyond simple grids |
-| `math_equation` | OMML / LaTeX / MathML equation |
-| `nested_footnote` | footnotes nested or cross-referenced beyond flat notes |
-| `unknown_docx_style` | a DOCX paragraph/character style outside the deterministic style map |
-| `unsupported_markup` | Markdown/HTML construct not in the supported subset |
-| `embedded_object` | OLE object, chart, SmartArt, embedded file |
-| `other` | anything else the adapter could not classify (must still carry rawContent) |
+| `complex_table` | tabela com estrutura além de uma grade simples |
+| `math_equation` | equação OMML / LaTeX / MathML |
+| `nested_footnote` | notas de rodapé aninhadas ou com referências cruzadas |
+| `unknown_docx_style` | estilo de parágrafo/caractere do DOCX fora do mapa de estilos |
+| `unsupported_markup` | construção Markdown/HTML fora do subconjunto suportado |
+| `embedded_object` | objeto OLE, gráfico, SmartArt, arquivo embutido |
+| `other` | qualquer outra coisa que o parser não soube classificar (mesmo assim leva `rawContent`) |
 
-`sourceLocation` union:
+Formas de `sourceLocation`:
 
 ```json
 { "kind": "docx", "paragraphIndex": 212, "styleName": "TableGrid" }   // DOCX
 { "kind": "markdown", "line": 88, "column": 1 }                        // Markdown
 ```
-
-- `THE SYSTEM SHALL populate reason from the closed enum above and sourceLocation with the kind matching
-  the source format.`
 
 ### 6.4 `ManuscritoSummary`
 
@@ -315,116 +282,91 @@ A **`Block`** is a discriminated union on `type`:
 
 ---
 
-## 7. Notes for the FE Specs phase (M3)
+## 7. Notas para o frontend
 
-1. **Rewrite/downgrade ADR-IMP-001** to the synchronous single-`POST` shape (decision D-A). No
-   `parseJobId`, no polling loop; show an indeterminate parse indicator while the `POST` is in flight.
-2. **Upload screen (T03) project binding** (decision D-C): send `file` + `projetoTitulo` (create) **or**
-   `file` + `projetoId` (existing). Never both, never neither.
-3. On `201`, hydrate Structure Review (T04) directly from the response `estrutura` — no follow-up read
-   required (though `GET /manuscripts/{id}` and `/estrutura` exist for reload/resume).
+1. O upload é um único `POST` que já devolve o manuscrito parseado. Enquanto ele está em andamento, a
+   tela mostra um indicador indeterminado ("analisando estrutura…"); não há loop de polling.
+2. Vínculo de projeto: `file` + `projetoTitulo` (projeto novo) **ou** `file` + `projetoId` (projeto
+   existente). Nunca os dois, nunca nenhum.
+3. Com o `201`, a revisão de estrutura é montada direto a partir da `estrutura` da resposta; não é
+   preciso uma leitura extra (os `GET` existem para recarregar/retomar).
 
 ---
 
-## 8. Addendum — T04 Editorial Actions (agreed phase M4, 2026-08-24)
+## 8. Ações editoriais da revisão de estrutura
 
-> **Context:** Screen T04 ("Revisão de Estrutura") exposes two editor actions — "Ignorar fragmento"
-> and "Confirmar estrutura" — that were previously client-only. This addendum closes the UX defects:
-> - "Ignorar fragmento" was optimistic + client-only: on page refresh the ignored segment reappeared
->   (the server had no record of the editorial decision). Fix: persist the annotation server-side.
-> - "Confirmar estrutura" had no server action: `ProjetoEditorial.status` remained `rascunho` after
->   the editor confirmed. Fix: advance status to `em_composicao` via the PROJ inbound port.
->
-> These two endpoints complete the T04→T05 handoff.
+A tela de revisão de estrutura tem duas ações do editor: "Ignorar fragmento" e "Confirmar estrutura".
 
-### 8.1 Ignore / restore an unparsed segment
+- "Ignorar fragmento" precisa ficar gravado no servidor; se ficasse só no cliente, o trecho ignorado
+  voltaria ao recarregar a página.
+- "Confirmar estrutura" avança o `ProjetoEditorial` de `rascunho` para `em_composicao`, através da
+  porta do PROJ.
 
-Persists an editorial annotation (`segmento_curadoria` row) recording that the editor chose to
-ignore a specific unparsed segment. Does **not** mutate `manuscrito.estrutura` (manuscript is
-immutable, local ADR-002). A GET on the manuscript / estrutura returns the full original tree;
-the "ignored" overlay is a separate annotation set read by the FE on T04 hydration.
+### 8.1 Ignorar / restaurar um trecho não parseado
 
-**Port:** `imp:write`
+Grava uma anotação editorial (linha em `segmento_curadoria`) dizendo que o editor decidiu ignorar um
+trecho não parseado. **Não** altera `manuscrito.estrutura` (o manuscrito é imutável). O `GET` do
+manuscrito ou da estrutura continua devolvendo a árvore original completa; o conjunto de ignorados é
+lido à parte pelo frontend.
+
+**Scope:** `imp:write`
 
 #### `POST /api/imp/manuscripts/{manuscritoId}/segmentos/{segmentoId}/ignore`
 
-Mark a segment as ignored.
+Marca um trecho como ignorado.
 
-- `manuscritoId` — UUID of an existing manuscript in the active empresa.
-- `segmentoId` — the `UnparsedSegment.id` from `ContentTree` (must exist in `manuscrito.estrutura`).
-- **Success — `201 Created`**, body = `SegmentoCuradoriaDto` (§8.3).
-- If already ignored: returns `200 OK` (idempotent — re-ignoring the same segment is harmless).
-
-EARS:
-- `WHEN an editor POSTs to ignore a known segmentoId of their manuscrito, THE SYSTEM SHALL persist
-  a SegmentoCuradoria record and return 201.`
-- `IF the segmentoId does not exist in manuscrito.estrutura, THEN THE SYSTEM SHALL respond 422
-  (urn:cordele:imp:segmento-not-found).`
-- `IF the manuscritoId does not exist in the active empresa, THEN THE SYSTEM SHALL respond 404.`
-- `IF the segmentoId is already ignored, THE SYSTEM SHALL respond 200 (idempotent).`
+- `manuscritoId` — UUID de um manuscrito existente na empresa ativa.
+- `segmentoId` — o `id` de um `UnparsedSegment` da `ContentTree` do manuscrito.
+- **Sucesso — `201 Created`**, corpo = `SegmentoCuradoriaDto` (§8.3).
+- Se o trecho já estava ignorado: `200 OK` (repetir é inofensivo).
+- `segmentoId` que não existe em `manuscrito.estrutura`: `422` (`urn:cordele:imp:segmento-not-found`).
+- `manuscritoId` inexistente na empresa ativa: `404`.
 
 #### `DELETE /api/imp/manuscripts/{manuscritoId}/segmentos/{segmentoId}/ignore`
 
-Restore (un-ignore) a previously ignored segment.
+Restaura (deixa de ignorar) um trecho.
 
-- **Success — `204 No Content`**.
-- If the segment was not ignored: `404` (there is nothing to delete).
-
-EARS:
-- `WHEN an editor DELETEs the ignore annotation for a known segmentoId, THE SYSTEM SHALL remove the
-  SegmentoCuradoria record and return 204.`
-- `IF no ignore annotation exists for the segmentoId, THEN THE SYSTEM SHALL respond 404.`
+- **Sucesso — `204 No Content`**, removendo a anotação.
+- Se o trecho não estava ignorado: `404` (não há o que remover).
 
 #### `GET /api/imp/manuscripts/{manuscritoId}/segmentos/ignored`
 
-Returns the set of currently ignored `segmentoId` strings for the manuscript. Called on T04 hydration
-alongside `GET /api/imp/manuscripts/{manuscritoId}/estrutura`.
+Devolve os `segmentoId` atualmente ignorados no manuscrito. O frontend chama junto com
+`GET /api/imp/manuscripts/{manuscritoId}/estrutura` ao abrir a revisão.
 
 - **Scope:** `imp:read`
-- **Success — `200 OK`**, body = `{ "manuscritoId": "uuid", "ignoredSegmentoIds": ["u-1", "u-3"] }`
+- **Sucesso — `200 OK`**, corpo = `{ "manuscritoId": "uuid", "ignoredSegmentoIds": ["u-1", "u-3"] }`
+  (a lista pode ser vazia).
 
-EARS:
-- `WHEN a GET is made for the ignored set, THE SYSTEM SHALL return the current set of ignored segmentoIds
-  for the manuscript, possibly empty.`
+### 8.2 Confirmar estrutura → avançar o status do projeto
 
-### 8.2 Confirm structure → advance projeto status
+Confirmação explícita do editor de que a revisão terminou. O IMP valida o manuscrito e delega a mudança
+de status ao PROJ; **o IMP nunca escreve em `projeto_editorial`**.
 
-The editor's explicit confirmation that the structure review is complete. IMP validates the manuscript
-and delegates the status advance to PROJ via in-process port — **IMP never writes `projeto_editorial`**
-(decision D-C, §0).
-
-**Port:** `imp:write`
+**Scope:** `imp:write`
 
 #### `POST /api/imp/manuscripts/{manuscritoId}/confirm-estrutura`
 
-Triggers the status transition `rascunho → em_composicao` on the owning `ProjetoEditorial`.
+Dispara a transição `rascunho → em_composicao` do `ProjetoEditorial` dono do manuscrito.
 
-- **Request body:** empty (or `{}`).
-- **Success — `200 OK`**, body = `ConfirmEstruturaResultDto` (§8.3).
+- **Corpo da requisição:** vazio (ou `{}`).
+- **Sucesso — `200 OK`**, corpo = `ConfirmEstruturaResultDto` (§8.3).
 
-Flow (application layer):
-1. Resolve `manuscritoId` → `projeto_id` (must belong to active empresa).
-2. Call `PROJ.AdvanceProjetoStatusUseCase.advanceTo(projetoId, targetStatus='em_composicao')`.
-3. Return the result including the new `projetoStatus`.
+Fluxo:
+1. Resolver `manuscritoId` → `projetoId` (o manuscrito tem que ser da empresa ativa).
+2. Chamar a porta do PROJ para avançar o projeto para `em_composicao`.
+3. Devolver o resultado com o novo `projetoStatus`.
 
-EARS:
-- `WHEN an editor POSTs confirm-estrutura for a valid manuscritoId, THE SYSTEM SHALL call
-  PROJ.AdvanceProjetoStatusUseCase.advanceTo(projetoId, em_composicao) and return 200 with the
-  new projeto status.`
-- `IF the projeto is already in em_composicao (or a later status), THE SYSTEM SHALL respond 200
-  without error (idempotent — re-confirming is harmless).`
-- `IF the PROJ port fails or the projeto cannot be advanced, THE SYSTEM SHALL respond 422
-  (urn:cordele:imp:status-advance-failed) and persist nothing.`
-- `IF the manuscritoId does not exist in the active empresa, THE SYSTEM SHALL respond 404.`
+Regras:
+- Se o projeto já está em `em_composicao` (ou num status posterior), a resposta é `200` sem erro
+  (confirmar de novo é inofensivo).
+- Se a porta do PROJ falha ou o projeto não pode avançar: `422` (`urn:cordele:imp:status-advance-failed`)
+  e nada é persistido.
+- `manuscritoId` inexistente na empresa ativa: `404`.
+- O IMP chama a porta do PROJ **uma única vez** por requisição de confirmação. Do lado do PROJ, a
+  transição `rascunho → em_composicao` é válida e status posteriores são aceitos sem regredir.
 
-**IMP↔PROJ agreement (binding):**
-- IMP calls `PROJ.AdvanceProjetoStatusUseCase.advanceTo({ projetoId, targetStatus: 'em_composicao' })`.
-- PROJ validates: `rascunho → em_composicao` is a legal transition; later statuses are accepted
-  idempotently (no regression).
-- IMP MUST NOT call this port more than once per confirm request; PROJ's use case is idempotent.
-- The PROJ port stub is provided with the IMP scaffold; the real implementation lands with PROJ (M5+).
-
-### 8.3 Schemas (Addendum)
+### 8.3 Schemas
 
 #### `SegmentoCuradoriaDto`
 
@@ -449,30 +391,23 @@ EARS:
 }
 ```
 
-### 8.4 New errors
+### 8.4 Erros adicionais
 
-| `type` (URN) | HTTP | When |
+| `type` (URN) | HTTP | Quando |
 |---|---|---|
-| `urn:cordele:imp:segmento-not-found` | 422 | segmentoId absent from manuscrito.estrutura |
-| `urn:cordele:imp:status-advance-failed` | 422 | PROJ port rejected the status advance |
+| `urn:cordele:imp:segmento-not-found` | 422 | `segmentoId` ausente de `manuscrito.estrutura` |
+| `urn:cordele:imp:status-advance-failed` | 422 | o PROJ recusou o avanço de status |
 
 ---
 
-## §9 — Endpoint interno de lote: sumário de manuscritos por projeto
+## 9. Endpoint interno em lote: resumo de manuscritos por projeto
 
-### Path
+`POST /api/imp/manuscripts/summaries` (URL completa: `POST /api/v1/imp/manuscripts/summaries`)
 
-`POST /api/imp/manuscripts/summaries`
+- **Autenticação:** Bearer JWT, scope `imp:read`.
+- **Empresa:** vem do usuário autenticado, como nos demais endpoints.
 
-> Full URL with global prefix: `POST /api/v1/imp/manuscripts/summaries`
-
-### Autenticação e autorização
-
-- **Auth:** Bearer JWT (global APP_GUARD).
-- **Scope:** `imp:read` — leitura de dados de manuscrito.
-- **Multi-empresa:** `empresaId` extraído de `@CurrentUser() user: AuthenticatedUser`; NUNCA hardcoded.
-
-### Request body
+Corpo da requisição:
 
 ```json
 { "projetoIds": ["uuid1", "uuid2", "..."] }
@@ -480,15 +415,13 @@ EARS:
 
 | Campo | Tipo | Restrições |
 |---|---|---|
-| `projetoIds` | `string[]` | UUIDs v4; máx **50** itens; obrigatório |
+| `projetoIds` | `string[]` | UUIDs v4; no máximo **50** itens; obrigatório |
 
-> **Limite de lote:** máximo 50 IDs por requisição (padrão cross-módulo). Enviar 51+ retorna
-> `400 Bad Request` com `type: urn:cordele:imp:validation`. O consumidor (proj-service) deve
-> fatiar listas maiores em blocos de até 50.
+Com 51 ou mais ids a resposta é `400` com `type: urn:cordele:imp:validation`; quem chama deve fatiar
+listas maiores em blocos de até 50.
 
-### Response — 200 OK
-
-Array de itens (projetos sem manuscrito são **omitidos** — ausência no array significa "sem manuscrito", diferente de zeros):
+Resposta `200 OK` — projetos sem manuscrito ficam **fora** da lista (ausência quer dizer "sem
+manuscrito", o que é diferente de contadores zerados):
 
 ```json
 [
@@ -496,25 +429,50 @@ Array de itens (projetos sem manuscrito são **omitidos** — ausência no array
 ]
 ```
 
-| Campo | Tipo | Semântica |
-|---|---|---|
-| `projetoId` | `string` | ID do projeto |
-| `totalCapitulos` | `number` | Campo persistido `total_capitulos` do manuscrito mais recente |
-| `totalImagens` | `number` | Campo persistido `total_imagens` do manuscrito mais recente |
+Quando um projeto tem vários manuscritos, valem os contadores do mais recente (maior `criadoEm`).
+A consulta é feita de uma vez para todos os ids e o mais recente de cada projeto é escolhido em
+memória, sem uma consulta por projeto.
 
-### Semântica de "mais recente"
+O proj-service usa este endpoint para preencher `totalCapitulos` e `totalImagens` nos cards da
+biblioteca de projetos.
 
-Quando um projeto possui múltiplos manuscritos, o endpoint retorna os campos
-`totalCapitulos` e `totalImagens` do manuscrito com maior `criadoEm` (desc).
+---
 
-### Query em lote
+## 10. Regras de parsing
 
-A consulta é feita com um único `findMany` com `projetoId: { in: projetoIds }`,
-seguida de desduplicação em memória por `projetoId` (pick mais recente).
-Garante N+1-free mesmo com centenas de projetos.
+Valem para os dois parsers (DOCX e Markdown).
 
-### Uso
+- **Texto verbatim.** O texto do autor sai exatamente como foi escrito, sem entidades HTML escapadas
+  nem espaços reescritos. Negrito, itálico etc. viram `runs` com `marks` (§6.2), sem mexer no texto.
+- **Nada é descartado.** Todo conteúdo do arquivo aparece na árvore: como parágrafo, imagem, título ou,
+  se o parser não conseguir estruturar, como trecho não parseado com `rawContent`, `reason` (§6.3) e
+  `sourceLocation`.
+- **Capítulo implícito.** Um documento sem nenhum capítulo explícito vira um único capítulo implícito
+  (`order: 0`) contendo todos os blocos.
+- **Ordem contínua.** Dentro de cada nó, `order` vai de 0 a n-1 sem buracos, contando juntos blocos e
+  trechos não parseados, na ordem em que aparecem no documento.
+- **Imagens.** Imagens embutidas (DOCX) ou referenciadas (Markdown) viram o mesmo formato
+  `Image{storageKey, mime, alt}`: o binário vai para o storage e o bloco guarda só a chave, o tipo MIME
+  e o texto alternativo (string vazia quando o original não tem). O bloco nunca carrega a imagem em si
+  (por exemplo, uma data URI em base64).
+- **Títulos de nível 3 ou mais.** Não abrem capítulo nem seção: viram um bloco do tipo `heading`, com o
+  texto do título, dentro da seção atual.
 
-Consumido pelo **proj-service** em
-`infrastructure/proj/read/manuscript-summary.adapter.ts` para popular os campos
-`totalCapitulos` e `totalImagens` nos cards da biblioteca de projetos.
+---
+
+## 11. Validação e segurança do upload
+
+A validação acontece **antes** de qualquer efeito colateral (storage, banco, eventos) e antes de o
+arquivo chegar ao parser.
+
+- **Tamanho:** acima de 50 MB (52428800 bytes) → `413` (`urn:cordele:imp:file-too-large`).
+- **Formato:** se a extensão **ou** o conteúdo do arquivo não for DOCX ou Markdown → `415`
+  (`urn:cordele:imp:unsupported-format`). A extensão sozinha não basta: um PDF renomeado para `.docx`
+  é recusado com `415`, não tratado como DOCX corrompido. Um DOCX é um pacote ZIP do Word com
+  `word/document.xml`; um Markdown é texto UTF-8 válido. O formato antigo do Word (`.doc` binário)
+  não é suportado.
+- **Macros:** DOCX com macros (projeto VBA embutido ou tipo de conteúdo habilitado para macro) é
+  recusado com `415`.
+- **Zip bomb:** um DOCX cujo conteúdo descompactado declarado é desproporcional ao limite de upload é
+  recusado sem ser descompactado pelo parser.
+- Um arquivo recusado não gera manuscrito, não grava nada no storage e não publica evento.

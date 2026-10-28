@@ -16,7 +16,7 @@ interface ProjCreateResponse {
 }
 
 /**
- * HTTP adapter for `CreateProjetoEditorialPort` (IMP-INT-001).
+ * HTTP adapter for `CreateProjetoEditorialPort`.
  *
  * Calls `POST /api/v1/proj/projetos` on the PROJ service.
  * The bearer token from the originating request is forwarded so the PROJ
@@ -26,9 +26,7 @@ interface ProjCreateResponse {
  *  - 5xx / network error → exception propagated (import fails; use case must not persist)
  *  - 4xx → logged + exception propagated with a descriptive message
  *
- * RULE-05: infrastructure/ does not import modules/; only domain port types (type-only).
- * RULE-06: outbound HTTP clients live only in `infrastructure/proj/http/`.
- * RULE-08: no console.log — Nest Logger only.
+ * Imports only domain port types from outside infrastructure/; logs through the Nest Logger.
  */
 @Injectable()
 export class CreateProjetoAdapter implements CreateProjetoEditorialPort {

@@ -29,13 +29,13 @@ import { ImpModule } from './modules/imp/imp.module';
  * EmpresaContextMiddleware registrado para todas as rotas (`*`).
  * Popula `AsyncLocalStorage` com { userId, empresaId } antes dos guards,
  * decodificando o JWT Bearer sem verificação criptográfica (a verificação
- * acontece no JwtAuthGuard, que roda depois). RULE-07.
+ * acontece no JwtAuthGuard, que roda depois).
  *
- * PROJ HTTP (IMP-INT-001 + IMP-INT-002 + D-C): adapters HTTP reais providos pelo
+ * PROJ HTTP: adapters HTTP reais providos pelo
  * ProjHttpModule (@Global). Usa factory condicional por PROJ_SERVICE_BASE_URL:
  *   - Definida → adapters reais (fetch nativo).
  *   - Não definida → stubs in-memory (fallback).
- * ProjHttpModule exporta os tokens, tornando-os visíveis para ImpModule sem violar RULE-04.
+ * ProjHttpModule exporta os tokens, tornando-os visíveis para ImpModule sem que ele importe infrastructure/.
  */
 @Module({
   imports: [

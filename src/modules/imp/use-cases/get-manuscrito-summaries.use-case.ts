@@ -14,8 +14,7 @@ export interface GetManuscritoSummariesCommand {
  * Consumido internamente pelo endpoint `POST /api/imp/manuscripts/summaries`,
  * chamado pelo proj-service para popular cards da biblioteca de projetos.
  *
- * RULE-07: empresaId requerido antes de qualquer repositório.
- * RULE-04: não importa infrastructure/ diretamente.
+ * empresaId requerido antes de qualquer repositório; não importa infrastructure/.
  */
 @Injectable()
 export class GetManuscritoSummariesUseCase {

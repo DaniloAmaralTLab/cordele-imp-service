@@ -14,7 +14,7 @@ export interface IgnoreSegmentCommand {
   readonly manuscritoId: string;
   readonly segmentoId: string;
   readonly motivo?: string;
-  /** Slug da empresa — requerido antes do primeiro acesso ao repositório (RULE-07). */
+  /** Slug da empresa — requerido antes do primeiro acesso ao repositório. */
   readonly empresaId: string;
 }
 
@@ -26,14 +26,14 @@ export interface RestoreSegmentCommand {
 }
 
 /**
- * Use case: IgnoreSegmentUseCase (IMP-007).
+ * Use case: IgnoreSegmentUseCase.
  *
  * Valida que o segmentoId pertence ao manuscrito e persiste SegmentoCuradoria.
  * Idempotente: ignores repetidos sobrescrevem o registro anterior com IGNORADO.
  * Restauração: POST seguido de DELETE resulta em status ATIVO.
  *
- * Não importa @prisma/client nem infrastructure/ (RULE-01/02/04).
- * empresaId requerido antes de qualquer acesso ao repositório (RULE-07).
+ * Não importa @prisma/client nem infrastructure/.
+ * empresaId requerido antes de qualquer acesso ao repositório.
  */
 @Injectable()
 export class IgnoreSegmentUseCase {
@@ -54,7 +54,7 @@ export class IgnoreSegmentUseCase {
   async ignore(command: IgnoreSegmentCommand): Promise<void> {
     const { manuscritoId, segmentoId, motivo, empresaId } = command;
 
-    // RULE-07: empresaId requerido antes do primeiro repositório.
+    // empresaId requerido antes do primeiro repositório.
     const manuscrito = await this.manuscritoRepo.findById(manuscritoId, empresaId);
     if (!manuscrito) {
       throw new ManuscritoNaoEncontradoError(manuscritoId);

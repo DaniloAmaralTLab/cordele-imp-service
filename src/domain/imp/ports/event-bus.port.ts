@@ -1,7 +1,7 @@
 /**
- * Port do event bus de domínio (IMP-INT-003).
+ * Port do event bus de domínio.
  *
- * Interface pura de domínio; sem decoradores Nest nem imports externos (RULE-01/02).
+ * Interface pura de domínio; sem decoradores Nest nem imports externos.
  * Implementada em infrastructure/events/.
  */
 

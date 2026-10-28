@@ -2,7 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 
 /**
- * Campos de formulário do upload de manuscrito (multipart/form-data — D-C).
+ * Campos de formulário do upload de manuscrito (multipart/form-data).
  *
  * Exatamente um de `projetoId` ou `projetoTitulo` deve ser fornecido:
  * - projetoId  → vincula ao projeto existente (validado pelo use case via FindProjetoPort)

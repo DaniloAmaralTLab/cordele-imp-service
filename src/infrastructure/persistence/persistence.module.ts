@@ -19,17 +19,17 @@ import { TenantPrismaFactory } from './tenant-prisma.factory';
 /**
  * Módulo de persistência — global, exporta tokens de ports para todo o contexto da aplicação.
  *
- * Decorado com @Global() para que ImpModule não precise importá-lo diretamente (RULE-04).
+ * Decorado com @Global() para que ImpModule não precise importá-lo diretamente.
  *
- * P3: substitui os bindings provisórios (useValue: null) pelos adapters Prisma reais:
+ * Adapters Prisma:
  *   - MANUSCRITO_REPOSITORY_PORT → PrismaManuscritoRepository
  *   - SEGMENTO_CURADORIA_REPOSITORY_PORT → PrismaSegmentoCuradoriaRepository
  *
- * P4: substitui os bindings provisórios de parse e storage pelos adapters reais:
+ * Parse e storage:
  *   - MANUSCRIPT_PARSER_PORT → ParserFactory (delega para DocxParserAdapter / MarkdownParserAdapter)
  *   - FILE_STORAGE_PORT → LocalDiskAdapter (default; substituível por S3Adapter via env flag)
  *
- * P8: seleciona o adapter de armazenamento via `FILE_STORAGE_ADAPTER`:
+ * O adapter de armazenamento é escolhido por `FILE_STORAGE_ADAPTER`:
  *   - `local` (default) → LocalDiskAdapter  (dev/testes, sem dependência de nuvem)
  *   - `s3`             → S3Adapter          (produção; requer S3_BUCKET/REGION/ACCESS_KEY/SECRET_KEY)
  */

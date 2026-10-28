@@ -7,7 +7,7 @@ import { SetMetadata } from '@nestjs/common';
  * IMPORTANT: must stay in sync with `REQUIRED_SCOPES_KEY` in
  * `src/infrastructure/auth/jwt-auth.guard.ts`.  Both files use the same
  * string literal so that guard and decorator work together without either
- * layer importing the other (RULE-04).
+ * layer importing the other.
  */
 export const REQUIRED_SCOPES_KEY = 'requiredScopes';
 
@@ -20,7 +20,7 @@ export const REQUIRED_SCOPES_KEY = 'requiredScopes';
  * `ForbiddenException` (403) is thrown.
  *
  * Lives in `modules/` so that `ImpController` can use it without importing
- * from `infrastructure/` (RULE-04).
+ * from `infrastructure/`.
  *
  * Example:
  * ```ts

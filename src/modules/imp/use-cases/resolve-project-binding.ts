@@ -17,7 +17,7 @@ export interface ProjectBindingOutput {
  * Helper compartilhado entre ImportManuscriptUseCase e ConfirmEstruturaUseCase.
  *
  * Chama CreateProjetoEditorialPort e mapeia falhas para ProjetoIntegrationError.
- * Não importa @prisma/client nem infrastructure/ (RULE-01/02/04).
+ * Não importa @prisma/client nem infrastructure/.
  */
 export async function resolveProjectBinding(
   port: CreateProjetoEditorialPort,

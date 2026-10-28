@@ -12,7 +12,7 @@ interface ProjDetailResponse {
 }
 
 /**
- * HTTP adapter for `FindProjetoPort` (D-C).
+ * HTTP adapter for `FindProjetoPort`.
  *
  * Calls `GET /api/v1/proj/projetos/:projetoId` on the PROJ service.
  * The bearer token from the originating request is forwarded so the PROJ
@@ -23,9 +23,7 @@ interface ProjDetailResponse {
  *  - 5xx / network error → exception propagated (import fails)
  *  - other 4xx → logged + exception propagated
  *
- * RULE-05: infrastructure/ does not import modules/; only domain port types (type-only).
- * RULE-06: outbound HTTP clients live only in `infrastructure/proj/http/`.
- * RULE-08: no console.log — Nest Logger only.
+ * Imports only domain port types from outside infrastructure/; logs through the Nest Logger.
  */
 @Injectable()
 export class FindProjetoAdapter implements FindProjetoPort {

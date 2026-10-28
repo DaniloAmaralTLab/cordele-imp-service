@@ -2,7 +2,7 @@ import { Manuscrito } from './manuscrito.entity';
 import type { ContentTree } from './content-tree';
 
 /**
- * Testes do agregado Manuscrito (P1).
+ * Testes do agregado Manuscrito.
  *
  * Verifica criação, campos obrigatórios e método hasSegmento.
  */
@@ -24,7 +24,7 @@ describe('Manuscrito', () => {
   };
 
   describe('Manuscrito.create()', () => {
-    it('should create a Manuscrito with imported status (D-B: synchronous parse)', () => {
+    it('should create a Manuscrito with imported status (synchronous parse)', () => {
       const m = Manuscrito.create(baseProps);
       expect(m.status).toBe('imported');
     });

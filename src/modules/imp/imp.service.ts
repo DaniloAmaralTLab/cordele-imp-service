@@ -33,12 +33,11 @@ import type { IgnoreSegmentUseCase } from './use-cases/ignore-segment.use-case';
 import type { ImportManuscriptUseCase } from './use-cases/import-manuscript.use-case';
 
 /**
- * Application service facade para IMP (Importação) — P2.
+ * Application service facade para IMP (Importação).
  *
  * Delega para os use cases reais; mapeia erros de domínio para exceções NestJS.
- * Não importa nada de infrastructure/ (RULE-04).
- * Não importa @prisma/client (RULE-01).
- * empresaId requerido antes de qualquer repositório (RULE-07).
+ * Não importa nada de infrastructure/ nem @prisma/client.
+ * empresaId requerido antes de qualquer repositório.
  */
 @Injectable()
 export class ImpService {
@@ -92,7 +91,7 @@ export class ImpService {
     if (!ms) {
       // 404 Not Found — manuscript does not exist within the active empresa
       // (cross-empresa access is indistinguishable from absent without cross-schema lookup,
-      // but 404 is the correct REST response in both cases: SPEC-06 / tenancy BDD).
+      // but 404 is the correct REST response in both cases).
       throw new NotFoundException(new ManuscritoNaoEncontradoError(id).message);
     }
     return this.toDetailDto(ms);
@@ -120,7 +119,7 @@ export class ImpService {
       projetoId,
       user.empresaId,
     );
-    // Sort by createdAt descending — newest manuscript first (SPEC-04 / ADR-002)
+    // Sort by createdAt descending — newest manuscript first
     const sorted = [...list].sort(
       (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
     );

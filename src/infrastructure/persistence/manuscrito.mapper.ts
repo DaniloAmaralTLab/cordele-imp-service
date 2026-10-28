@@ -9,7 +9,7 @@ import { Manuscrito } from '../../domain/imp/manuscrito.entity';
  * ManuscritoMapper — converte entre o agregado de domínio `Manuscrito`
  * e o modelo Prisma `Manuscrito` (tabela `manuscrito`).
  *
- * RULE-01: domínio não importa @prisma/client; o mapper vive em infrastructure.
+ * O domínio não importa @prisma/client; o mapper vive em infrastructure.
  * O mapper é o único ponto de transformação entre as duas representações.
  */
 export class ManuscritoMapper {
@@ -18,7 +18,7 @@ export class ManuscritoMapper {
    *
    * Notas de mapeamento:
    * - `empresaId` determina o schema via `datasourceUrl` (`?schema=emp_<slug>`), não é coluna.
-   * - `tamanhoBytes`: DB constraint exige > 0. Valor real fornecido pelo FileStorage (P4).
+   * - `tamanhoBytes`: DB constraint exige > 0. Valor real vem do tamanho do arquivo enviado.
    * - `status`: MVP usa 'imported' como estado terminal pós-importação.
    * - `totalCapitulos/Imagens/trechosNaoParseados`: derivados da ContentTree.
    */

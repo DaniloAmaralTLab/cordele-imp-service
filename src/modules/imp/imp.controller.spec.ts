@@ -15,12 +15,12 @@ import {
 import { MANUSCRITO_REPOSITORY_PORT } from '../../domain/imp/ports/manuscrito-repository.port';
 
 /**
- * Testes de presença das 7 rotas de negócio no ImpController (P1).
+ * Testes de presença das 7 rotas de negócio no ImpController.
  *
  * Verifica via Reflect.getMetadata que as rotas estão declaradas.
- * Não executa casos de uso reais (stubs em P1).
+ * Não executa casos de uso reais.
  */
-describe('ImpController — P1 route presence', () => {
+describe('ImpController — route presence', () => {
   let controller: ImpController;
   let module: TestingModule | undefined;
 
@@ -194,7 +194,7 @@ describe('ImpController — P1 route presence', () => {
     });
   });
 
-  describe('service stub methods throw NotImplementedException in P1', () => {
+  describe('service stub methods throw NotImplementedException', () => {
     let service: ImpService;
 
     beforeEach(() => {
@@ -231,14 +231,14 @@ describe('ImpController — P1 route presence', () => {
   });
 
   /**
-   * IMP-017 — Scope metadata verification.
+   * Scope metadata verification.
    *
    * Verifica via Reflect.getMetadata que cada handler tem o scope correto
    * declarado conforme api-contract.md.  A aplicação do guard (403 quando
    * scope ausente) já é coberta em jwt-auth.guard.spec.ts; aqui garantimos
    * que os handlers DECLARAM o scope certo.
    */
-  describe('scope metadata — @RequiredScopes declarations (IMP-017)', () => {
+  describe('scope metadata — @RequiredScopes declarations', () => {
     const getScopes = (proto: object, methodName: string): string[] | undefined =>
       Reflect.getMetadata(REQUIRED_SCOPES_KEY, (proto as Record<string, object>)[methodName]);
 
@@ -290,13 +290,13 @@ describe('ImpController — P1 route presence', () => {
   });
 
   /**
-   * IMP-017 — Casos negativos: guard lança ForbiddenException (403) quando
+   * Casos negativos: guard lança ForbiddenException (403) quando
    * o token não carrega o scope exigido pelo handler.
    *
    * Usa JwtAuthGuard diretamente com Reflector mockado para simular a
    * resolução de metadata que o Nest faz em runtime.
    */
-  describe('scope enforcement — negative cases (403) via JwtAuthGuard (IMP-017)', () => {
+  describe('scope enforcement — negative cases (403) via JwtAuthGuard', () => {
 
     const makeUser = (scopes: string[]) => ({
       userId: 'u1',
@@ -362,9 +362,9 @@ describe('ImpController — P1 route presence', () => {
   });
 
   /**
-   * getSummaries — functional tests (IMP-INT batch query).
+   * getSummaries — functional tests (batch query).
    */
-  describe('getSummaries — functional (IMP-INT batch query)', () => {
+  describe('getSummaries — functional (batch query)', () => {
     it('returns empty array for empty projetoIds', async () => {
       jest.spyOn(module!.get<ImpService>(ImpService), 'getManuscritoSummaries').mockResolvedValue([]);
       const result = await controller.getSummaries(

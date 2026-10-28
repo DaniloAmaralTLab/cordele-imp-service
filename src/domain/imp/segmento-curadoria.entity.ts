@@ -1,7 +1,7 @@
 /**
  * SegmentoCuradoria — registro de curadoria de um segmento de manuscrito.
  *
- * Tipo puro de domínio; sem decoradores Nest nem imports Prisma (RULE-01/02).
+ * Tipo puro de domínio; sem decoradores Nest nem imports Prisma.
  */
 
 export type SegmentoCuradoriaStatus = 'IGNORADO' | 'ATIVO';

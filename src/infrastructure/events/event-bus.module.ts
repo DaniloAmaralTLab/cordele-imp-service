@@ -4,11 +4,11 @@ import { EVENT_BUS_PORT } from '../../domain/imp/ports/event-bus.port';
 import { InMemoryEventBus } from './in-memory-event-bus';
 
 /**
- * Módulo de event bus (IMP-INT-003).
+ * Módulo de event bus.
  *
  * Decorado com @Global() para que qualquer módulo possa injetar EVENT_BUS_PORT
  * sem importar este módulo diretamente.
- * NÃO importa modules/ (RULE-05).
+ * NÃO importa modules/.
  */
 @Global()
 @Module({

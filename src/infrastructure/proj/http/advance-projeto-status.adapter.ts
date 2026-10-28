@@ -7,7 +7,7 @@ import type {
 } from '../../../domain/imp/ports/proj-port';
 
 /**
- * HTTP adapter for `AdvanceProjetoStatusPort` (IMP-INT-002).
+ * HTTP adapter for `AdvanceProjetoStatusPort`.
  *
  * Calls `POST /api/v1/proj/projetos/:projetoId/advance-status` on the PROJ service.
  * The bearer token from the originating request is forwarded so the PROJ
@@ -18,9 +18,7 @@ import type {
  *  - 409 Conflict → idempotent: logged as warn, NOT re-thrown (the use case treats this as success)
  *  - other 4xx → logged + exception propagated
  *
- * RULE-05: infrastructure/ does not import modules/; only domain port types (type-only).
- * RULE-06: outbound HTTP clients live only in `infrastructure/proj/http/`.
- * RULE-08: no console.log — Nest Logger only.
+ * Imports only domain port types from outside infrastructure/; logs through the Nest Logger.
  */
 @Injectable()
 export class AdvanceProjetoStatusAdapter implements AdvanceProjetoStatusPort {

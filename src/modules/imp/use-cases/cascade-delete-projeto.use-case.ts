@@ -17,15 +17,14 @@ export interface CascadeDeleteProjetoInput {
 }
 
 /**
- * CascadeDeleteProjetoUseCase — use case de deleção em cascata (IMP-INT-005 / P7).
+ * CascadeDeleteProjetoUseCase — use case de deleção em cascata.
  *
  * Orquestra a remoção de todos os manuscritos de um projeto:
  *   1. Carrega os manuscritos via ManuscritoRepositoryPort.findByProjetoId
  *   2. Purga os binários via FileStoragePort.delete (best-effort; falhas são logadas)
  *   3. Remove os registros via ManuscritoRepositoryPort.deleteByProjetoId
  *
- * Não importa @prisma/client (RULE-01). Não importa @nestjs/common além de decoradores
- * de DI (RULE-02 aplica-se a domain/, não a modules/). Não importa infrastructure/ (RULE-04).
+ * Não importa @prisma/client nem infrastructure/; de @nestjs/common usa só a DI.
  */
 @Injectable()
 export class CascadeDeleteProjetoUseCase {

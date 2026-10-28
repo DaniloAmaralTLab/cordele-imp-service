@@ -1,8 +1,8 @@
 /**
  * Port de armazenamento de arquivos.
  *
- * Interface pura de domínio; sem decoradores Nest nem imports Prisma (RULE-01/02).
- * Implementada em infrastructure/storage/ (RULE-04/05).
+ * Interface pura de domínio; sem decoradores Nest nem imports Prisma.
+ * Implementada em infrastructure/storage/.
  */
 export interface FileStoragePort {
   /**

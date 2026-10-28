@@ -9,7 +9,7 @@ import type { FileStoragePort } from '../../domain/imp/ports/file-storage.port';
  * Adapter de FileStoragePort que persiste arquivos no disco local.
  *
  * Apenas para uso em desenvolvimento/testes; em produção será substituído
- * pelo S3Adapter (P8).
+ * pelo S3Adapter.
  *
  * Storage key: `emp_{empresaId}/{manuscritoId}/{filename}`
  * Base dir: env var `FILE_STORAGE_BASE_DIR` (default: `/tmp/cordele-files`)
@@ -33,7 +33,7 @@ export class LocalDiskAdapter implements FileStoragePort {
     empresaId: string,
     manuscritoId: string,
   ): Promise<string> {
-    // Escopado por empresa — isolamento multi-empresa (RULE-07).
+    // Escopado por empresa — isolamento multi-empresa.
     const storageKey = `emp_${empresaId}/${manuscritoId}/${filename}`;
     const fullPath = path.join(this.baseDir, storageKey);
     await fs.mkdir(path.dirname(fullPath), { recursive: true });

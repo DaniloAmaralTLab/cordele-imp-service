@@ -9,7 +9,7 @@ import { SegmentoCuradoria } from '../../domain/imp/segmento-curadoria.entity';
  *
  * Mapeamentos notáveis:
  * - Domínio `status` ('IGNORADO'|'ATIVO') → DB `acao` ('ignorado') — MVP suporta só 'IGNORADO'.
- * - `criadoPor`: não presente no domínio; usa 'system' como placeholder (P5 populará via JWT).
+ * - `criadoPor`: não presente no domínio; usa 'system' como placeholder.
  * - `updatedAt`: não existe na tabela; derivado de `criadoEm` na leitura.
  */
 export class SegmentoCuradoriaMapper {

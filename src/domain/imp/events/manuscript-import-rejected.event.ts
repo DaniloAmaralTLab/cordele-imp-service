@@ -2,7 +2,7 @@ import type { DomainEvent } from '../ports/event-bus.port';
 
 /**
  * Evento emitido quando o parse de um manuscrito falha.
- * Tipo puro de domínio; sem decoradores Nest (RULE-01/02).
+ * Tipo puro de domínio; sem decoradores Nest.
  */
 export class ManuscriptImportRejectedEvent implements DomainEvent {
   readonly eventName = 'ManuscriptImportRejected';

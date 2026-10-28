@@ -10,12 +10,11 @@ import { TenantPrismaFactory } from './tenant-prisma.factory';
  *
  * Implementa `ManuscritoRepositoryPort` usando Prisma + schema-per-tenant.
  *
- * RULE-01: sem imports de @prisma/client no domain.
- * RULE-07: `empresaId` é requerido em todos os métodos para isolamento multi-empresa.
+ * `empresaId` é requerido em todos os métodos para isolamento multi-empresa.
  * INSERT-only: `save()` jamais chama `update()` ou `upsert()` (imutabilidade do agregado).
  *
  * O `TenantPrismaFactory.withTenant()` cria um `PrismaClient` com `datasourceUrl`
- * própria (`?schema=emp_<slug>`), garantindo isolamento real entre tenants (D-619).
+ * própria (`?schema=emp_<slug>`), garantindo isolamento real entre tenants.
  */
 @Injectable()
 export class PrismaManuscritoRepository implements ManuscritoRepositoryPort {

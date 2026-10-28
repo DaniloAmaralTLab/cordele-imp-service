@@ -43,10 +43,10 @@ export interface ImportManuscriptCommand {
   readonly filename: string;
   readonly mimeType: string;
   readonly fileBuffer: Buffer;
-  /** Exatamente um dos dois deve ser fornecido (D-C). */
+  /** Exatamente um dos dois deve ser fornecido. */
   readonly projetoId?: string;
   readonly projetoTitulo?: string;
-  /** Slug da empresa — requerido para isolamento multi-empresa (RULE-07). */
+  /** Slug da empresa — requerido para isolamento multi-empresa. */
   readonly empresaId: string;
   /**
    * Bearer token do usuário que originou a requisição HTTP.
@@ -58,7 +58,7 @@ export interface ImportManuscriptCommand {
 }
 
 /**
- * Use case: ImportManuscriptUseCase (IMP-004 + IMP-005 + IMP-006 + D-A + D-C).
+ * Use case: ImportManuscriptUseCase.
  *
  * Orquestra: validação → parse → project binding (resolve/create) → armazenamento →
  * persistência → emissão de evento.
@@ -69,15 +69,15 @@ export interface ImportManuscriptCommand {
  * erro é logado com contexto completo para reconciliação manual (a role coordenadora
  * não tem proj:delete, então tentar deletar o projeto retornaria 403).
  *
- * Validações EARS:
+ * Validações:
  * - IF file > 50 MB → ArquivoGrandeDemaisError (413)
  * - IF formato inválido → FormatoNaoSuportadoError (415)
  * - IF nenhum ou ambos projetoId/projetoTitulo → ProjectBindingInvalidError (400)
  * - IF projetoId não existe na empresa ativa → ProjetoNaoEncontradoError (422)
  * - IF parse irrecuperável → ManuscriptParseError (422)
  *
- * Não importa @prisma/client nem infrastructure/ diretamente (RULE-01/02/04).
- * empresaId requerido antes do primeiro acesso ao repositório (RULE-07).
+ * Não importa @prisma/client nem infrastructure/ diretamente.
+ * empresaId requerido antes do primeiro acesso ao repositório.
  */
 @Injectable()
 export class ImportManuscriptUseCase {
@@ -111,13 +111,13 @@ export class ImportManuscriptUseCase {
       throw new ArquivoGrandeDemaisError(fileBuffer.length);
     }
 
-    // ── 2. Validação de formato (415) — baseada na extensão do arquivo ───────
+    // ── 2. Validação de formato (415) ────────────────────────────────────────
     const resolvedMime = this.resolveMimeType(filename);
     if (!resolvedMime) {
       throw new FormatoNaoSuportadoError(filename);
     }
 
-    // ── 3. Validação de project binding (400) — D-C ───────────────────────────
+    // ── 3. Validação de project binding (400) ─────────────────────────────────
     if (!projetoId && !projetoTitulo) {
       throw new ProjectBindingInvalidError('none');
     }
@@ -165,7 +165,7 @@ export class ImportManuscriptUseCase {
       resolvedProjetoId = created.projetoId;
     }
 
-    // ── 7. Armazenamento do arquivo (RULE-07: empresaId requerido) ────────────
+    // ── 7. Armazenamento do arquivo (empresaId requerido) ─────────────────────
     const storageKey = await this.fileStorage.store(
       fileBuffer,
       filename,
@@ -186,7 +186,7 @@ export class ImportManuscriptUseCase {
       tamanhoBytes: BigInt(fileBuffer.length),
     });
 
-    // ── 9. Persistência (RULE-07: empresaId explícito) ────────────────────────
+    // ── 9. Persistência (empresaId explícito) ─────────────────────────────────
     let saved: Manuscrito;
     try {
       saved = await this.manuscritoRepo.save(manuscrito, empresaId);
@@ -210,7 +210,7 @@ export class ImportManuscriptUseCase {
       throw err;
     }
 
-    // ── 10. Emissão de evento de domínio (IMP-INT-003) ────────────────────────
+    // ── 10. Emissão de evento de domínio ──────────────────────────────────────
     await this.eventBus.publish(
       new ManuscriptImportedEvent(saved.id, resolvedProjetoId, empresaId, filename),
     );
@@ -223,7 +223,7 @@ export class ImportManuscriptUseCase {
   }
 
   /**
-   * Resolve o MIME type a partir da extensão do arquivo.
+   * Resolve o MIME type do arquivo enviado.
    * Retorna null se o formato não for suportado.
    * Não confia no Content-Type do cliente (pode ser falsificado).
    */

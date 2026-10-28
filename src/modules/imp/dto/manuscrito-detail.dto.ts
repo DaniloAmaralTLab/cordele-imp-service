@@ -8,8 +8,8 @@ import type { ContentTree } from '../../../domain/imp/content-tree';
  * Mapeado a partir do agregado Manuscrito; nunca expõe o modelo Prisma diretamente.
  * Conforme api-contract.md §6.1 (ManuscritoDetail).
  *
- * D-A: parse síncrono → status sempre 'imported' na resposta de upload bem-sucedido.
- * D-B: sem parseJobId — não há polling.
+ * Parse síncrono → status sempre 'imported' na resposta de upload bem-sucedido.
+ * Sem parseJobId — não há polling.
  */
 export class ManuscritoDetailDto {
   @ApiProperty({ description: 'Identificador único do manuscrito (UUID v4)' })

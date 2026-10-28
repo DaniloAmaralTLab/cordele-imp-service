@@ -72,8 +72,8 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   }
 
   // `override` is required: AuthGuard('jwt') already declares canActivate, and
-  // the generated tsconfig enables noImplicitOverride (TS4114). Without it the
-  // service does not compile — which no one saw while the node gates never ran.
+  // the tsconfig enables noImplicitOverride (TS4114). Without it the service
+  // does not compile.
   override async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),

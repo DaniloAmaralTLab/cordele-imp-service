@@ -10,11 +10,11 @@ import type {
 import type { FindProjetoOutput, FindProjetoPort } from '../../domain/imp/ports/find-projeto.port';
 
 /**
- * Stub in-memory para CreateProjetoEditorialPort (IMP-INT-001).
+ * Stub in-memory para CreateProjetoEditorialPort.
  *
  * Registrado em AppModule até o PROJ service estar disponível.
  * Retorna um projetoId sintético baseado no manuscritoId.
- * NÃO importa infrastructure/persistence/ (RULE-05).
+ * NÃO importa infrastructure/persistence/.
  */
 @Injectable()
 export class CreateProjetoEditorialStub implements CreateProjetoEditorialPort {
@@ -31,7 +31,7 @@ export class CreateProjetoEditorialStub implements CreateProjetoEditorialPort {
 }
 
 /**
- * Stub in-memory para AdvanceProjetoStatusPort (IMP-INT-002).
+ * Stub in-memory para AdvanceProjetoStatusPort.
  *
  * Registrado em AppModule até o PROJ service estar disponível.
  * Idempotente: chamadas repetidas não lançam exceção.
@@ -48,9 +48,9 @@ export class AdvanceProjetoStatusStub implements AdvanceProjetoStatusPort {
 }
 
 /**
- * Stub in-memory para FindProjetoPort (D-C).
+ * Stub in-memory para FindProjetoPort.
  *
- * Registrado em ProjStubModule para uso em desenvolvimento e testes BDD.
+ * Registrado em ProjStubModule para uso em desenvolvimento e testes.
  * Aceita qualquer projetoId (simula que todo projeto existe na empresa ativa).
  * Em produção, substituído por um adapter HTTP ou in-process que consulta PROJ.
  */

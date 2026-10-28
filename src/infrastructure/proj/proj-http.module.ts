@@ -16,7 +16,7 @@ import { CreateProjetoAdapter } from './http/create-projeto.adapter';
 import { FindProjetoAdapter } from './http/find-projeto.adapter';
 
 /**
- * Módulo HTTP real para integração IMP→PROJ (IMP-INT-001 / IMP-INT-002 / D-C).
+ * Módulo HTTP real para integração IMP→PROJ.
  *
  * Substitui ProjStubModule em AppModule quando o PROJ service está disponível.
  * Usa factory condicional por env var PROJ_SERVICE_BASE_URL:
@@ -24,11 +24,9 @@ import { FindProjetoAdapter } from './http/find-projeto.adapter';
  *   - Não definida → stubs in-memory (fallback; os stubs não são apagados).
  *
  * Decorado com @Global() para que ImpModule possa injetar os tokens PROJ
- * sem importar infrastructure/ diretamente (RULE-04).
+ * sem importar infrastructure/ diretamente.
  *
- * RULE-05: não importa modules/.
- * RULE-06: clientes HTTP ficam em infrastructure/proj/http/.
- * RULE-08: Logger do Nest, nunca console.log.
+ * Não importa modules/; os clientes HTTP ficam em infrastructure/proj/http/.
  */
 @Global()
 @Module({

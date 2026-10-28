@@ -3,8 +3,8 @@ import type { SegmentoCuradoria } from '../segmento-curadoria.entity';
 /**
  * Port de repositório para o agregado SegmentoCuradoria.
  *
- * Interface pura de domínio; sem decoradores Nest nem imports Prisma (RULE-01/02).
- * Implementada em infrastructure/persistence/ (P3).
+ * Interface pura de domínio; sem decoradores Nest nem imports Prisma.
+ * Implementada em infrastructure/persistence/.
  */
 export interface SegmentoCuradoriaRepositoryPort {
   /**

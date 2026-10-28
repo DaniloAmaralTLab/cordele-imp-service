@@ -19,10 +19,10 @@ import type { FileStoragePort } from '../../domain/imp/ports/file-storage.port';
  *
  * Storage key: `emp_{empresaId}/{manuscritoId}/{filename}`
  *
- * Regras de implementação (RULE-01..09):
+ * Regras de implementação:
  *  - Nenhum import de @nestjs/* no domain (esta classe vive em infrastructure/).
  *  - ConfigService injetado via construtor (nunca property injection).
- *  - Sem console.log — usa Logger do Nest (RULE-08).
+ *  - Sem console.log — usa Logger do Nest.
  */
 @Injectable()
 export class S3Adapter implements FileStoragePort {
@@ -47,7 +47,7 @@ export class S3Adapter implements FileStoragePort {
 
   /**
    * Armazena um arquivo no S3 e retorna a chave de armazenamento.
-   * Path: `emp_{empresaId}/{manuscritoId}/{filename}` — escopo multi-empresa (RULE-07).
+   * Path: `emp_{empresaId}/{manuscritoId}/{filename}` — escopo multi-empresa.
    */
   async store(
     buffer: Buffer,

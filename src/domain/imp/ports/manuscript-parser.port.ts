@@ -3,8 +3,8 @@ import type { ContentTree } from '../content-tree';
 /**
  * Port do parser de manuscritos.
  *
- * Interface pura de domínio; sem decoradores Nest nem imports Prisma (RULE-01/02).
- * Implementada em infrastructure/parsers/ (RULE-04/05).
+ * Interface pura de domínio; sem decoradores Nest nem imports Prisma.
+ * Implementada em infrastructure/parsers/.
  */
 export interface ManuscriptParserPort {
   /**

@@ -4,7 +4,7 @@ import type { ContentTree } from './content-tree';
  * Manuscrito — agregado raiz do módulo IMP.
  *
  * Imutável após criação (INSERT-only; sem UPDATE).
- * Tipo puro de domínio; sem decoradores Nest nem imports Prisma (RULE-01/02).
+ * Tipo puro de domínio; sem decoradores Nest nem imports Prisma.
  */
 
 export type ManuscritoStatus =
@@ -55,14 +55,14 @@ export class Manuscrito {
     this.estrutura = props.estrutura;
     this.status = props.status;
     this.createdAt = props.createdAt;
-    // Default 1n satisfies DB constraint (tamanho_bytes > 0); P4 populates real value.
+    // Default 1n satisfies DB constraint (tamanho_bytes > 0); the use case passes the real value.
     this.tamanhoBytes = props.tamanhoBytes ?? BigInt(1);
   }
 
   static create(props: Omit<ManuscritoProps, 'createdAt' | 'status'>): Manuscrito {
     return new Manuscrito({
       ...props,
-      // D-B / D-A: parse síncrono → status sempre 'imported' após criação bem-sucedida.
+      // Parse síncrono → status sempre 'imported' após criação bem-sucedida.
       status: 'imported',
       createdAt: new Date(),
     });

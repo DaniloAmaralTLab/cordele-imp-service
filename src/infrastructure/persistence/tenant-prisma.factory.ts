@@ -20,7 +20,7 @@ import { PrismaClient } from '../prisma-client';
  * número de clients no cache é limitado ao número de empresas do grupo, não a
  * requisições ou usuários.
  *
- * RULE-07: todo acesso a dados deve ser escopado por empresaId.
+ * Todo acesso a dados deve ser escopado por empresaId.
  *
  * Uso:
  * ```ts
@@ -28,8 +28,6 @@ import { PrismaClient } from '../prisma-client';
  *   return tx.manuscrito.findUnique({ where: { id } });
  * });
  * ```
- *
- * @see docs/architecture/shared/multi-empresa.md
  */
 @Injectable()
 export class TenantPrismaFactory implements OnModuleDestroy {

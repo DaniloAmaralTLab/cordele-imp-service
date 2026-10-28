@@ -27,7 +27,7 @@ export {
 /**
  * IMP — Importação.
  *
- * Bounded context module. Não importa infrastructure/ diretamente (RULE-04).
+ * Bounded context module. Não importa infrastructure/ diretamente.
  * Os ports de repositório, storage, parser e event bus são providos pelos módulos
  * globais (PersistenceModule, EventBusModule) registrados em AppModule e injetados
  * via tokens de DI.
@@ -38,14 +38,13 @@ export {
 @Module({
   controllers: [ImpController],
   providers: [
-    // P2: use cases reais substituem os placeholders useValue: null de P1.
     ImportManuscriptUseCase,
     IgnoreSegmentUseCase,
     ConfirmEstruturaUseCase,
     { provide: IMPORT_MANUSCRIPT_USE_CASE, useClass: ImportManuscriptUseCase },
     { provide: IGNORE_SEGMENT_USE_CASE, useClass: IgnoreSegmentUseCase },
     { provide: CONFIRM_ESTRUTURA_USE_CASE, useClass: ConfirmEstruturaUseCase },
-    // P7: cascade delete triggered by ProjetoDeleted event from PROJ context.
+    // Cascade delete triggered by ProjetoDeleted event from PROJ context.
     CascadeDeleteProjetoUseCase,
     { provide: CASCADE_DELETE_PROJETO_USE_CASE, useClass: CascadeDeleteProjetoUseCase },
     // Batch summary endpoint — consumed by proj-service to populate library cards.

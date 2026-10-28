@@ -2,7 +2,7 @@ import type { DomainEvent } from '../ports/event-bus.port';
 
 /**
  * Evento emitido após importação bem-sucedida de um manuscrito.
- * Tipo puro de domínio; sem decoradores Nest (RULE-01/02).
+ * Tipo puro de domínio; sem decoradores Nest.
  */
 export class ManuscriptImportedEvent implements DomainEvent {
   readonly eventName = 'ManuscriptImported';

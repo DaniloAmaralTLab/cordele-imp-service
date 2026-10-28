@@ -12,10 +12,10 @@ import {
 } from './proj-port.stub';
 
 /**
- * Módulo de stubs PROJ (IMP-INT-001 / IMP-INT-002 / D-C).
+ * Módulo de stubs PROJ.
  *
  * Decorado com @Global() para que ImpModule (e qualquer use case dentro dele)
- * possa injetar os tokens PROJ sem precisar importar infrastructure/ diretamente (RULE-04).
+ * possa injetar os tokens PROJ sem precisar importar infrastructure/ diretamente.
  *
  * Substituído por um módulo HTTP-client real quando o PROJ service estiver disponível.
  *
