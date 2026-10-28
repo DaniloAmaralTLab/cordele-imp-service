@@ -10,25 +10,27 @@ into valid ePub publications. The platform is split into four NestJS services:
 | pub-service  | Assemble and validate the ePub; publication history |
 | proj-service | Editorial project lifecycle and status |
 
-This repository contains **imp-service** only. Contracts of the services it talks to
-live under `docs/services/*/contracts/`.
+This repository contains **imp-service**. Contracts of the services it talks to live
+under `docs/services/*/contracts/`.
 
 ## Layout
 
 ```
-services/imp-service/   NestJS service (hexagonal: src/modules, src/domain, src/infrastructure)
-docs/            architecture: service spec, contracts, ADRs, standards, issues
+src/modules/          NestJS feature modules: controllers, DTOs, use cases
+src/domain/           entities, value objects, ports — no framework imports
+src/infrastructure/   Prisma repositories, HTTP adapters, auth
+prisma/               schema and migrations
+docs/                 service spec, contracts, ADRs, standards, issues
 ```
 
-## Setup (Node 22, pnpm)
+## Development (Node 22)
 
 ```bash
-pnpm install
-pnpm --filter @cordele/imp-service prisma:generate
-pnpm --filter @cordele/imp-service test        # Jest unit tests (no database needed)
-pnpm --filter @cordele/imp-service typecheck
-pnpm --filter @cordele/imp-service lint        # includes hexagonal boundary rules
+npm install
+npm run prisma:generate
+npm test              # Jest unit tests
+npm run typecheck
+npm run lint          # includes the hexagonal boundary rules
 ```
 
-Running the service itself needs PostgreSQL and an OIDC provider; see
-`services/imp-service/README.md` and `services/imp-service/.env.example`.
+Running the service needs PostgreSQL and an OIDC provider; see `.env.example`.
